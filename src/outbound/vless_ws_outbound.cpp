@@ -1,5 +1,3 @@
-#pragma once
-
 #include "outbound/vless_ws_outbound.hpp"
 #include "core/session.hpp"
 #include "core/utils.hpp"
@@ -7,8 +5,10 @@
 #include <boost/asio.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/connect.hpp>
+#include <boost/asio/error.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 #include <boost/asio/ip/address_v4.hpp>
+#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/asio/ssl/context.hpp>
 #include <boost/asio/ssl/error.hpp>
@@ -30,6 +30,7 @@
 #include <boost/beast/websocket/rfc6455.hpp>
 #include <boost/beast/websocket/stream.hpp>
 #include <boost/beast/websocket/stream_base.hpp>
+#include <boost/system/system_error.hpp>
 #include <exception>
 #include <iostream>
 #include <openssl/err.h>
@@ -66,6 +67,10 @@ asio::awaitable<void> VlessWsOutbound::handle(tcp::socket inbound,
     ws.binary(true);
     auto request = build_vless_request(session.destination);
     co_await ws.async_write(asio::buffer(request), asio::use_awaitable);
+    if (!session.initial_payload.empty()) {
+      co_await ws.async_write(asio::buffer(session.initial_payload),
+                              asio::use_awaitable);
+    }
     co_await (reply_tcp_to_ws(inbound, ws) || reply_ws_to_tcp(ws, inbound));
   } catch (const std::exception &e) {
     std::cerr << "[vless-ws-tls] " << e.what() << std::endl;
@@ -135,10 +140,26 @@ asio::awaitable<void> VlessWsOutbound::reply_tcp_to_ws(tcp::socket &tcp_socket,
                                                        WsTlsStream &ws) {
   std::array<unsigned char, 16 * 1024> buffer{};
   for (;;) {
-    auto n = co_await tcp_socket.async_read_some(asio::buffer(buffer),
-                                                 asio::use_awaitable);
+    error_code ec;
+    auto n = co_await tcp_socket.async_read_some(
+        asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
+    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
+        ec == asio::error::operation_aborted) {
+      co_return;
+    }
+    if (ec) {
+      throw boost::system::system_error(ec);
+    }
     co_await ws.async_write(asio::buffer(buffer.data(), n),
-                            asio::use_awaitable);
+                            asio::redirect_error(asio::use_awaitable, ec));
+    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
+        ec == asio::error::operation_aborted ||
+        ec == websocket::error::closed) {
+      co_return;
+    }
+    if (ec) {
+      throw boost::system::system_error(ec);
+    }
   }
 }
 asio::awaitable<void>
@@ -146,7 +167,20 @@ VlessWsOutbound::reply_ws_to_tcp(WsTlsStream &ws, tcp::socket &tcp_socket) {
   bool first_message = true;
   for (;;) {
     beast::flat_buffer buffer;
-    co_await ws.async_read(buffer, asio::use_awaitable);
+    error_code ec;
+
+    co_await ws.async_read(buffer,
+                           asio::redirect_error(asio::use_awaitable, ec));
+
+    if (ec == websocket::error::closed || ec == asio::error::eof ||
+        ec == asio::error::connection_reset ||
+        ec == asio::error::operation_aborted) {
+      co_return;
+    }
+    if (ec) {
+      throw boost::system::system_error(ec);
+    }
+
     std::vector<unsigned char> bytes(buffer.size());
     boost::asio::buffer_copy(boost::asio::buffer(bytes), buffer.data());
     if (first_message) {
@@ -155,7 +189,15 @@ VlessWsOutbound::reply_ws_to_tcp(WsTlsStream &ws, tcp::socket &tcp_socket) {
     }
     if (!bytes.empty()) {
       co_await asio::async_write(tcp_socket, asio::buffer(bytes),
-                                 asio::use_awaitable);
+                                 asio::redirect_error(asio::use_awaitable, ec));
+
+      if (ec == asio::error::eof || ec == asio::error::connection_reset ||
+          ec == asio::error::operation_aborted) {
+        co_return;
+      }
+      if (ec) {
+        throw boost::system::system_error(ec);
+      }
     }
   }
 }

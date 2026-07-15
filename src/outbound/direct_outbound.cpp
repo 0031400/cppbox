@@ -1,6 +1,6 @@
-#pragma once
 #include "outbound/direct_outbound.hpp"
 #include "core/net.hpp"
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
 #include <boost/asio/this_coro.hpp>
@@ -22,6 +22,10 @@ asio::awaitable<void> DirectOutbound::handle(tcp::socket inbound,
         session.destination.host, std::to_string(session.destination.port),
         asio::use_awaitable);
     co_await asio::async_connect(outbound, results, asio::use_awaitable);
+    if (!session.initial_payload.empty()) {
+      co_await asio::async_write(
+          outbound, asio::buffer(session.initial_payload), asio::use_awaitable);
+    }
     co_await (relay(inbound, outbound) || relay(outbound, inbound));
 
   } catch (const std::exception &e) {

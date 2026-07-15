@@ -1,4 +1,3 @@
-#pragma once
 #include "inbound/socks5_inbound.hpp"
 #include "core/session.hpp"
 #include "core/utils.hpp"
