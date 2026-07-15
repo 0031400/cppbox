@@ -14,7 +14,9 @@ add_executable(sbox
     src/inbound/mixed_inbound.cpp
     src/outbound/direct_outbound.cpp
     src/outbound/block_outbound.cpp
-    src/outbound/vless_ws_outbound.cpp
+    src/outbound/vless_outbound.cpp
+    src/transport/ws_client.cpp
+    src/protocol/vless.cpp
 )
 target_include_directories(sbox PRIVATE src)
 target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)

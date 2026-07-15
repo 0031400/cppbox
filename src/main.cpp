@@ -6,8 +6,11 @@
 #include "outbound/block_outbound.hpp"
 #include "outbound/direct_outbound.hpp"
 #include "outbound/outbound.hpp"
+#include "outbound/vless_outbound.hpp"
 #include "outbound/vless_ws_outbound.hpp"
+#include "protocol/vless.hpp"
 #include "route/router.hpp"
+#include "transport/ws_client.hpp"
 #include <algorithm>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -31,13 +34,20 @@ int main() {
       if (item.type == "direct") {
         outbounds[item.tag] = std::make_shared<sbox::DirectOutbound>(io);
       } else if (item.type == "vless") {
-        outbounds[item.tag] = std::make_shared<sbox::VlessWsOutbound>(
-            io, sbox::VLessWsConfig{.server_host = item.server,
-                                    .server_port = item.server_port,
-                                    .uuid = item.uuid,
-                                    .ws_path = item.ws.path,
-                                    .host_header = item.ws.host,
-                                    .allow_insecure = item.tls.insecure});
+        outbounds[item.tag] = std::make_shared<sbox::VlessOutbound>(
+            io, sbox::VlessOutboundConfig{
+                    .vless = sbox::VlessConfig{.uuid = item.uuid},
+                    .transport = sbox::WsClientConfig{
+                        .server_host = item.server,
+                        .server_port = item.server_port,
+                        .path = item.ws.path,
+                        .host_header = item.ws.host,
+                        .tls = sbox::TlsClientConfig{
+                            .enabled = item.tls.enabled,
+                            .server_name = item.tls.server_name.empty()
+                                               ? item.server
+                                               : item.tls.server_name,
+                            .insecure = item.tls.insecure}}});
       } else if (item.type == "block") {
         outbounds[item.tag] = std::make_shared<sbox::BlockOutbound>();
       }

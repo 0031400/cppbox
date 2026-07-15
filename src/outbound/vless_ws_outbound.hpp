@@ -45,9 +45,9 @@ private:
   using WsTlsStream = websocket::stream<beast::ssl_stream<tcp::socket>>;
   asio::awaitable<void> connect_websocket(WsTlsStream &ws);
   std::vector<unsigned char> build_vless_request(const Destination &dst) const;
-  asio::awaitable<void> reply_tcp_to_ws(tcp::socket &tcp_socket,
+  asio::awaitable<void> relay_tcp_to_ws(tcp::socket &tcp_socket,
                                         WsTlsStream &ws);
-  asio::awaitable<void> reply_ws_to_tcp(WsTlsStream &ws,
+  asio::awaitable<void> relay_ws_to_tcp(WsTlsStream &ws,
                                         tcp::socket &tcp_socket);
   static void strip_vless_response_header(std::vector<unsigned char> &bytes);
   asio::io_context &io_;

@@ -71,7 +71,7 @@ asio::awaitable<void> VlessWsOutbound::handle(tcp::socket inbound,
       co_await ws.async_write(asio::buffer(session.initial_payload),
                               asio::use_awaitable);
     }
-    co_await (reply_tcp_to_ws(inbound, ws) || reply_ws_to_tcp(ws, inbound));
+    co_await (relay_tcp_to_ws(inbound, ws) || relay_ws_to_tcp(ws, inbound));
   } catch (const std::exception &e) {
     log_error(std::string("[vless-ws-tls] ") + e.what());
   }
@@ -136,7 +136,7 @@ VlessWsOutbound::build_vless_request(const Destination &dst) const {
   out.insert(out.end(), dst.host.begin(), dst.host.end());
   return out;
 }
-asio::awaitable<void> VlessWsOutbound::reply_tcp_to_ws(tcp::socket &tcp_socket,
+asio::awaitable<void> VlessWsOutbound::relay_tcp_to_ws(tcp::socket &tcp_socket,
                                                        WsTlsStream &ws) {
   std::array<unsigned char, 16 * 1024> buffer{};
   for (;;) {
@@ -163,7 +163,7 @@ asio::awaitable<void> VlessWsOutbound::reply_tcp_to_ws(tcp::socket &tcp_socket,
   }
 }
 asio::awaitable<void>
-VlessWsOutbound::reply_ws_to_tcp(WsTlsStream &ws, tcp::socket &tcp_socket) {
+VlessWsOutbound::relay_ws_to_tcp(WsTlsStream &ws, tcp::socket &tcp_socket) {
   bool first_message = true;
   for (;;) {
     beast::flat_buffer buffer;
