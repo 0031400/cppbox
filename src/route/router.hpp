@@ -24,6 +24,8 @@ private:
   static std::uint32_t ipv4_to_u32(const boost::asio::ip::address_v4 &ip);
   static bool match_ipv4_cidr(const std::string &ip_text,
                               const std::string &cidr);
+  static bool match_ipv6_cidr(const std::string &ip_text,
+                              const std::string &cidr);
   static bool match_ip_cidr(const RouteRuleConfig &rule,
                             const Destination &dst);
   bool match_rule(const RouteRuleConfig &rule, const Destination &dst) const;

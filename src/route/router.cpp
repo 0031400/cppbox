@@ -3,11 +3,12 @@
 #include "core/session.hpp"
 #include "rule_set.hpp"
 #include <boost/asio/ip/address_v4.hpp>
-#include <exception>
 #include <core/log.hpp>
+#include <exception>
 #include <memory>
 #include <stdexcept>
 #include <string>
+
 namespace sbox {
 Router::Router(RouteConfig config) : config_(std::move(config)) {
   for (const auto &item : config_.rule_sets) {
@@ -97,6 +98,33 @@ bool Router::match_ipv4_cidr(const std::string &ip_text,
   std::uint32_t mask = prefix == 0 ? 0 : (0xffffffffu << (32 - prefix));
   return (ipv4_to_u32(base) & mask) == (ipv4_to_u32(ip) & mask);
 }
+bool Router::match_ipv6_cidr(const std::string &ip_text,
+                             const std::string &cidr) {
+  auto slash = cidr.find("/");
+  if (slash == std::string::npos) {
+    return ip_text == cidr;
+  }
+  auto base = boost::asio::ip::make_address_v6(cidr.substr(0, slash));
+  auto ip = boost::asio::ip::make_address_v6(ip_text);
+  auto base_bytes = base.to_bytes();
+  auto ip_bytes = ip.to_bytes();
+  int prefix = std::stoi(cidr.substr(slash + 1));
+  if (prefix < 0 || prefix > 128) {
+    return false;
+  }
+  int full_bytes = prefix / 8;
+  int rest_bits = prefix % 8;
+  for (int i = 0; i < full_bytes; i++) {
+    if (base_bytes[i] != ip_bytes[i]) {
+      return false;
+    }
+  }
+  if (rest_bits == 0) {
+    return true;
+  }
+  auto mask = static_cast<unsigned char>(0xffu << (8 - rest_bits));
+  return (base_bytes[full_bytes] & mask) == (ip_bytes[full_bytes] & mask);
+}
 bool Router::match_ip_cidr(const RouteRuleConfig &rule,
                            const Destination &dst) {
   if (!is_ip(dst)) {
@@ -104,8 +132,21 @@ bool Router::match_ip_cidr(const RouteRuleConfig &rule,
   }
   for (const auto &cidr : rule.ip_cidr) {
     try {
-      if (dst.type == AddressType::IPv4 && match_ipv4_cidr(dst.host, cidr)) {
-        return true;
+      if (dst.type == AddressType::IPv4) {
+        if (cidr.find(':') != std::string::npos) {
+          continue;
+        }
+        if (match_ipv4_cidr(dst.host, cidr)) {
+          return true;
+        }
+      }
+      if (dst.type == AddressType::IPv6) {
+        if (cidr.find(':') == std::string::npos) {
+          continue;
+        }
+        if (match_ipv4_cidr(dst.host, cidr)) {
+          return true;
+        }
       }
     } catch (const std::exception &e) {
       log_error(e.what());
