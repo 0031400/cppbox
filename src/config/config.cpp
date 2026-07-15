@@ -43,6 +43,10 @@ std::vector<std::string> get_string_array(const json::object &o,
   if (it == o.end()) {
     return out;
   }
+  if (it->value().is_string()) {
+    out.emplace_back(it->value().as_string());
+    return out;
+  }
   for (const auto &item : it->value().as_array()) {
     out.emplace_back(item.as_string());
   }
@@ -91,17 +95,40 @@ AppConfig load_config(const std::string &path) {
   }
   const auto &route = root["route"].as_object();
   config.route.final_outbound = get_string(route, "final");
+  if (auto it = route.find("rule_set"); it != route.end()) {
+    for (const auto &item : it->value().as_array()) {
+      const auto &o = item.as_object();
+      RuleSetConfig rule_set;
+      rule_set.type = get_string(o, "type");
+      rule_set.tag = get_string(o, "tag");
+      rule_set.format = get_string(o, "format");
+      rule_set.path = get_string(o, "path");
+      if (rule_set.type != "local") {
+        throw std::runtime_error("only local rule_set is supported: " +
+                                 rule_set.tag);
+      }
+
+      if (rule_set.format != "source") {
+        throw std::runtime_error("only source rule_set is supported: " +
+                                 rule_set.tag);
+      }
+      if (rule_set.path.empty()) {
+        throw std::runtime_error("missing rule_set path: " + rule_set.tag);
+      }
+      config.route.rule_sets.push_back(std::move(rule_set));
+    }
+  }
   if (auto it = route.find("rules"); it != route.end()) {
     for (const auto &item : it->value().as_array()) {
       const auto &o = item.as_object();
-      config.route.rules.push_back(
-          {.domain = get_string_array(o, "domain"),
-           .domain_suffix = get_string_array(o, "domain_suffix"),
-           .domain_keyword = get_string_array(o, "domain_keyword"),
-           .ip_cidr = get_string_array(o, "ip_cidr"),
-           .outbound = get_string(o, "outbound")
-
-          });
+      RouteRuleConfig rule;
+      rule.domain = get_string_array(o, "domain");
+      rule.domain_suffix = get_string_array(o, "domain_suffix");
+      rule.domain_keyword = get_string_array(o, "domain_keyword");
+      rule.ip_cidr = get_string_array(o, "ip_cidr");
+      rule.rule_set = get_string_array(o, "rule_set");
+      rule.outbound = get_string(o, "outbound");
+      config.route.rules.push_back(std::move(rule));
     }
   }
   return config;

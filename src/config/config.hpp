@@ -36,11 +36,20 @@ struct RouteRuleConfig {
   std::vector<std::string> domain_suffix;
   std::vector<std::string> domain_keyword;
   std::vector<std::string> ip_cidr;
+  std::vector<std::string> rule_set;
+  std::string action;
   std::string outbound;
+};
+struct RuleSetConfig {
+  std::string type;
+  std::string tag;
+  std::string format;
+  std::string path;
 };
 struct RouteConfig {
   std::vector<RouteRuleConfig> rules;
   std::string final_outbound;
+  std::vector<RuleSetConfig> rule_sets;
 };
 struct AppConfig {
   std::vector<InboundConfig> inbounds;

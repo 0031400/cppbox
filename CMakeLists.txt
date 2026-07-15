@@ -9,6 +9,7 @@ add_executable(sbox
     src/main.cpp
     src/config/config.cpp
     src/route/router.cpp
+    src/route/rule_set.cpp
     src/inbound/socks5_inbound.cpp
     src/inbound/mixed_inbound.cpp
     src/outbound/direct_outbound.cpp

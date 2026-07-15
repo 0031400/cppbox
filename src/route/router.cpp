@@ -1,12 +1,31 @@
 #include "route/router.hpp"
 #include "config/config.hpp"
 #include "core/session.hpp"
+#include "rule_set.hpp"
 #include <boost/asio/ip/address_v4.hpp>
 #include <exception>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <string>
 namespace sbox {
-Router::Router(RouteConfig config) : config_(std::move(config)) {}
+Router::Router(RouteConfig config) : config_(std::move(config)) {
+  for (const auto &item : config_.rule_sets) {
+    if (item.type != "local") {
+      throw std::runtime_error("only local rule_set is supported: " + item.tag);
+    }
+    if (item.format != "source") {
+      throw std::runtime_error("only source rule_set is supported: " +
+                               item.tag);
+    }
+
+    if (item.path.empty()) {
+      throw std::runtime_error("missing rule_set path: " + item.tag);
+    }
+    rule_sets_[item.tag] =
+        std::make_shared<RuleSet>(RuleSet::load_source(item.path));
+  }
+}
 std::string Router::pick_outbound(const Session &session) const {
   for (const auto &rule : config_.rules) {
     if (match_rule(rule, session.destination)) {
@@ -85,7 +104,22 @@ bool Router::match_ip_cidr(const RouteRuleConfig &rule,
   }
   return false;
 }
-bool Router::match_rule(const RouteRuleConfig &rule, const Destination &dst) {
+bool Router::match_rule_conditions(const RouteRuleConfig &rule,
+                                   const Destination &dst) {
   return match_domain(rule, dst) || match_ip_cidr(rule, dst);
+}
+
+bool Router::match_rule(const RouteRuleConfig &rule,
+                        const Destination &dst) const {
+  if (match_rule_conditions(rule, dst)) {
+    return true;
+  }
+  for (const auto &tag : rule.rule_set) {
+    auto it = rule_sets_.find(tag);
+    if (it != rule_sets_.end() && it->second->match(dst)) {
+      return true;
+    }
+  }
+  return false;
 }
 }; // namespace sbox
