@@ -17,9 +17,10 @@ add_executable(sbox
     src/outbound/vless_outbound.cpp
     src/transport/ws_client.cpp
     src/protocol/vless.cpp
+    src/platform/windows_proxy.cpp
 )
 target_include_directories(sbox PRIVATE src)
-target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
+target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json wininet)
 target_compile_definitions(sbox PRIVATE
     _WIN32_WINNT=0x0601
 )

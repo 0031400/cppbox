@@ -6,9 +6,11 @@
 #include "outbound/direct_outbound.hpp"
 #include "outbound/outbound.hpp"
 #include "outbound/vless_outbound.hpp"
+#include "platform/windows_proxy.hpp"
 #include "protocol/vless.hpp"
 #include "route/router.hpp"
 #include "transport/ws_client.hpp"
+#include <Windows.h>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -18,10 +20,25 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
-
+sbox::WindowsProxyGuard *g_windows_proxy = nullptr;
+BOOL WINAPI consoleCtrlHandler(DWORD signal) {
+  switch (signal) {
+  case CTRL_C_EVENT:
+  case CTRL_BREAK_EVENT:
+  case CTRL_CLOSE_EVENT:
+  case CTRL_LOGOFF_EVENT:
+  case CTRL_SHUTDOWN_EVENT:
+    if (g_windows_proxy != nullptr) {
+      g_windows_proxy->reset();
+    }
+    return FALSE;
+  default:
+    return FALSE;
+  }
+}
 int main() {
   try {
     boost::asio::io_context io;
@@ -78,7 +95,15 @@ int main() {
         inbounds[inbound_config.tag] = inbound;
       }
     }
+    sbox::WindowsProxyGuard windows_proxy(config.windows_proxy.enabled,
+                                          config.windows_proxy.addr,
+                                          config.windows_proxy.port);
+    g_windows_proxy = &windows_proxy;
+    SetConsoleCtrlHandler(consoleCtrlHandler, TRUE);
     io.run();
+    SetConsoleCtrlHandler(consoleCtrlHandler, FALSE);
+    g_windows_proxy = nullptr;
+
   } catch (const std::exception &e) {
     sbox::log_error(e.what());
     return 1;

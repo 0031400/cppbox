@@ -51,10 +51,16 @@ struct RouteConfig {
   std::string final_outbound;
   std::vector<RuleSetConfig> rule_sets;
 };
+struct WindowsProxyConfig {
+  bool enabled = false;
+  std::string addr = "127.0.0.1";
+  std::uint16_t port = 1080;
+};
 struct AppConfig {
   std::vector<InboundConfig> inbounds;
   std::vector<OutboundConfig> outbounds;
   RouteConfig route;
+  WindowsProxyConfig windows_proxy;
 };
 const json::object &as_object(const json::value &v, const char *name);
 std::string get_string(const json::object &o, const char *key,

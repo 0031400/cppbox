@@ -131,6 +131,13 @@ AppConfig load_config(const std::string &path) {
       config.route.rules.push_back(std::move(rule));
     }
   }
+  if (auto it = root.find("windows_proxy"); it != root.end()) {
+    const auto &windows_proxy = it->value().as_object();
+    config.windows_proxy.enabled = get_bool(windows_proxy, "enabled", false);
+    config.windows_proxy.addr =
+        get_string(windows_proxy, "addr", "127.0.0.1");
+    config.windows_proxy.port = get_u16(windows_proxy, "port", 1080);
+  }
   return config;
 }
 }; // namespace sbox
