@@ -1,6 +1,5 @@
 #include "outbound/vless_outbound.hpp"
 #include "core/log.hpp"
-#include "core/utils.hpp"
 #include "transport/ws_client.hpp"
 #include <array>
 #include <boost/asio/experimental/awaitable_operators.hpp>

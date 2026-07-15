@@ -2,16 +2,13 @@
 #include "core/log.hpp"
 #include "core/session.hpp"
 #include "inbound/mixed_inbound.hpp"
-#include "inbound/socks5_inbound.hpp"
 #include "outbound/block_outbound.hpp"
 #include "outbound/direct_outbound.hpp"
 #include "outbound/outbound.hpp"
 #include "outbound/vless_outbound.hpp"
-#include "outbound/vless_ws_outbound.hpp"
 #include "protocol/vless.hpp"
 #include "route/router.hpp"
 #include "transport/ws_client.hpp"
-#include <algorithm>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
