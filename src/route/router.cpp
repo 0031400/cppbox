@@ -38,7 +38,7 @@ bool Router::ends_with(const std::string &text, const std::string &suffix) {
   return text.size() >= suffix.size() &&
          text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
-bool Router::contians(const std::string &text, const std::string &keyword) {
+bool Router::contains(const std::string &text, const std::string &keyword) {
   return text.find(keyword) != std::string::npos;
 }
 bool Router::is_ip(const Destination &dst) {
@@ -54,12 +54,21 @@ bool Router::match_domain(const RouteRuleConfig &rule, const Destination &dst) {
     }
   }
   for (const auto &item : rule.domain_suffix) {
-    if (dst.host == item || ends_with(dst.host, item)) {
-      return true;
+    if (item.empty()) {
+      continue;
+    }
+    if (item[0] == '.') {
+      if (ends_with(dst.host, item)) {
+        return true;
+      }
+    } else {
+      if (dst.host == item || ends_with(dst.host, "." + item)) {
+        return true;
+      }
     }
   }
   for (const auto &item : rule.domain_keyword) {
-    if (contians(dst.host, item)) {
+    if (contains(dst.host, item)) {
       return true;
     }
   }

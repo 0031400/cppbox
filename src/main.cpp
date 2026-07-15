@@ -47,6 +47,8 @@ int main() {
         [&](sbox::tcp::socket socket,
             sbox::Session session) -> boost::asio::awaitable<void> {
           auto tag = router.pick_outbound(session);
+          std::cout << "[route] " << session.destination.host << ":"
+                    << session.destination.port << " -> " << tag << std::endl;
           auto it = outbounds.find(tag);
           if (it == outbounds.end()) {
             throw std::runtime_error("outbound not found: " + tag);

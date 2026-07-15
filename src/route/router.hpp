@@ -18,7 +18,7 @@ public:
 
 private:
   static bool ends_with(const std::string &text, const std::string &suffix);
-  static bool contians(const std::string &text, const std::string &keyword);
+  static bool contains(const std::string &text, const std::string &keyword);
   static bool is_ip(const Destination &dst);
   static bool match_domain(const RouteRuleConfig &rule, const Destination &dst);
   static std::uint32_t ipv4_to_u32(const boost::asio::ip::address_v4 &ip);

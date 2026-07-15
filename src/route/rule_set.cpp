@@ -3,6 +3,7 @@
 #include "route/router.hpp"
 #include <boost/json/parse.hpp>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <stdexcept>
 #include <utility>
