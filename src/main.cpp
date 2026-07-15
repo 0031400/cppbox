@@ -1,4 +1,5 @@
 #include "config/config.hpp"
+#include "core/log.hpp"
 #include "core/session.hpp"
 #include "inbound/mixed_inbound.hpp"
 #include "inbound/socks5_inbound.hpp"
@@ -62,7 +63,7 @@ int main() {
               << inbound_config.listen_port << "\n";
     io.run();
   } catch (const std::exception &e) {
-    std::cerr << "fatal: " << e.what() << std::endl;
+    sbox::log_error(e.what());
     return 1;
   }
   return 0;

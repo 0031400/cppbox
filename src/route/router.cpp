@@ -4,7 +4,7 @@
 #include "rule_set.hpp"
 #include <boost/asio/ip/address_v4.hpp>
 #include <exception>
-#include <iostream>
+#include <core/log.hpp>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -108,7 +108,7 @@ bool Router::match_ip_cidr(const RouteRuleConfig &rule,
         return true;
       }
     } catch (const std::exception &e) {
-      std::cerr << e.what() << std::endl;
+      log_error(e.what());
     }
   }
   return false;

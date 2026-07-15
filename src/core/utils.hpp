@@ -56,6 +56,10 @@ inline std::string bytes_to_string(boost::asio::const_buffer buffer) {
 }
 inline void close_socket(tcp::socket &socket) {
   error_code ignored;
+  if (!socket.is_open()) {
+    return;
+  }
+  ignored = socket.cancel(ignored);
   ignored = socket.shutdown(tcp::socket::shutdown_both, ignored);
   ignored = socket.close(ignored);
 }

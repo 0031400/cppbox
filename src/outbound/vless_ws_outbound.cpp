@@ -32,7 +32,7 @@
 #include <boost/beast/websocket/stream_base.hpp>
 #include <boost/system/system_error.hpp>
 #include <exception>
-#include <iostream>
+#include <core/log.hpp>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/tls1.h>
@@ -73,7 +73,7 @@ asio::awaitable<void> VlessWsOutbound::handle(tcp::socket inbound,
     }
     co_await (reply_tcp_to_ws(inbound, ws) || reply_ws_to_tcp(ws, inbound));
   } catch (const std::exception &e) {
-    std::cerr << "[vless-ws-tls] " << e.what() << std::endl;
+    log_error(std::string("[vless-ws-tls] ") + e.what());
   }
   close_socket(inbound);
   error_code ignored;

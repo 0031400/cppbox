@@ -13,7 +13,7 @@
 #include <boost/asio/write.hpp>
 #include <exception>
 #include <functional>
-#include <iostream>
+#include <core/log.hpp>
 #include <stdexcept>
 #include <vector>
 
@@ -35,7 +35,7 @@ asio::awaitable<void> Socks5Inbound::handle_client(tcp::socket socket) {
     auto session = co_await read_session(socket);
     co_await handler_(std::move(socket), std::move(session));
   } catch (const std::exception &e) {
-    std::cerr << "[socks5] " << e.what() << std::endl;
+    log_error(std::string("[socks5] ") + e.what());
     close_socket(socket);
   }
 }

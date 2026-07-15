@@ -7,7 +7,7 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/write.hpp>
 #include <exception>
-#include <iostream>
+#include <core/log.hpp>
 #include <string>
 
 namespace sbox {
@@ -29,7 +29,7 @@ asio::awaitable<void> DirectOutbound::handle(tcp::socket inbound,
     co_await (relay(inbound, outbound) || relay(outbound, inbound));
 
   } catch (const std::exception &e) {
-    std::cerr << "[direct] " << e.what() << std::endl;
+    log_error(std::string("[direct] ") + e.what());
   }
 }
 asio::awaitable<void> DirectOutbound::relay(tcp::socket &from,

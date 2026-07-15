@@ -13,7 +13,7 @@
 #include <boost/asio/write.hpp>
 #include <cctype>
 #include <exception>
-#include <iostream>
+#include <core/log.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -42,7 +42,7 @@ asio::awaitable<void> MixedInbound::handle_client(tcp::socket socket) {
     }
     co_await handler_(std::move(socket), std::move(session));
   } catch (const std::exception &e) {
-    std::cerr << "[mixed] " << e.what() << std::endl;
+    log_error(std::string("[mixed] ") + e.what());
     close_socket(socket);
   }
 }
