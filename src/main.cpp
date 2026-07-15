@@ -1,5 +1,6 @@
 #include "config/config.hpp"
 #include "core/session.hpp"
+#include "inbound/mixed_inbound.hpp"
 #include "inbound/socks5_inbound.hpp"
 #include "outbound/direct_outbound.hpp"
 #include "outbound/outbound.hpp"
@@ -39,7 +40,7 @@ int main() {
       }
     }
     const auto &inbound_config = config.inbounds.front();
-    sbox::Socks5Inbound inbound(
+    sbox::MixedInbound inbound(
         io,
         {boost::asio::ip::make_address(inbound_config.listen),
          inbound_config.listen_port},
@@ -53,7 +54,7 @@ int main() {
           co_await it->second->handle(std::move(socket), std::move(session));
         });
     boost::asio::co_spawn(io, inbound.start(), boost::asio::detached);
-    std::cout << "sbox listening on socks5://" << inbound_config.listen << ":"
+    std::cout << "sbox listening on mixed://" << inbound_config.listen << ":"
               << inbound_config.listen_port << "\n";
     io.run();
   } catch (const std::exception &e) {
