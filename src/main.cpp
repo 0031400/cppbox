@@ -53,26 +53,30 @@ int main() {
     std::unordered_map<std::string, std::shared_ptr<sbox::MixedInbound>>
         inbounds;
     for (const auto &inbound_config : config.inbounds) {
-      auto endpoint = sbox::tcp::endpoint{
-          boost::asio::ip::make_address(inbound_config.listen),
-          inbound_config.listen_port};
-      auto inbound = std::make_shared<sbox::MixedInbound>(
-          io, endpoint,
-          [&](sbox::tcp::socket socket,
-              sbox::Session session) -> boost::asio::awaitable<void> {
-            auto tag = router.pick_outbound(session);
-            std::cout << "[route] " << session.destination.host << ":"
-                      << session.destination.port << " -> " << tag << std::endl;
-            auto it = outbounds.find(tag);
-            if (it == outbounds.end()) {
-              throw std::runtime_error("outbound not found: " + tag);
-            }
-            co_await it->second->handle(std::move(socket), std::move(session));
-          });
-      boost::asio::co_spawn(io, inbound->start(), boost::asio::detached);
-      std::cout << "sbox listening on mixed://" << inbound_config.listen << ":"
-                << inbound_config.listen_port << "\n";
-      inbounds[inbound_config.tag] = inbound;
+      if (inbound_config.type == "mixed") {
+        auto endpoint = sbox::tcp::endpoint{
+            boost::asio::ip::make_address(inbound_config.listen),
+            inbound_config.listen_port};
+        auto inbound = std::make_shared<sbox::MixedInbound>(
+            io, endpoint,
+            [&](sbox::tcp::socket socket,
+                sbox::Session session) -> boost::asio::awaitable<void> {
+              auto tag = router.pick_outbound(session);
+              std::cout << "[route] " << session.destination.host << ":"
+                        << session.destination.port << " -> " << tag
+                        << std::endl;
+              auto it = outbounds.find(tag);
+              if (it == outbounds.end()) {
+                throw std::runtime_error("outbound not found: " + tag);
+              }
+              co_await it->second->handle(std::move(socket),
+                                          std::move(session));
+            });
+        boost::asio::co_spawn(io, inbound->start(), boost::asio::detached);
+        std::cout << "sbox listening on mixed://" << inbound_config.listen
+                  << ":" << inbound_config.listen_port << "\n";
+        inbounds[inbound_config.tag] = inbound;
+      }
     }
     io.run();
   } catch (const std::exception &e) {
