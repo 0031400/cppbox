@@ -2,6 +2,7 @@
 #include "core/session.hpp"
 #include "inbound/mixed_inbound.hpp"
 #include "inbound/socks5_inbound.hpp"
+#include "outbound/block_outbound.hpp"
 #include "outbound/direct_outbound.hpp"
 #include "outbound/outbound.hpp"
 #include "outbound/vless_ws_outbound.hpp"
@@ -30,13 +31,14 @@ int main() {
         outbounds[item.tag] = std::make_shared<sbox::DirectOutbound>(io);
       } else if (item.type == "vless") {
         outbounds[item.tag] = std::make_shared<sbox::VlessWsOutbound>(
-            io,
-            sbox::VLessWsConfig{.server_host = "example.com",
-                                .server_port = 443,
-                                .uuid = "00000000-0000-0000-0000-000000000000",
-                                .ws_path = "/00000000",
-                                .host_header = "example.com",
-                                .allow_insecure = true});
+            io, sbox::VLessWsConfig{.server_host = item.server,
+                                    .server_port = item.server_port,
+                                    .uuid = item.uuid,
+                                    .ws_path = item.ws.path,
+                                    .host_header = item.ws.host,
+                                    .allow_insecure = item.tls.insecure});
+      } else if (item.type == "block") {
+        outbounds[item.tag] = std::make_shared<sbox::BlockOutbound>();
       }
     }
     const auto &inbound_config = config.inbounds.front();

@@ -13,6 +13,7 @@ add_executable(sbox
     src/inbound/socks5_inbound.cpp
     src/inbound/mixed_inbound.cpp
     src/outbound/direct_outbound.cpp
+    src/outbound/block_outbound.cpp
     src/outbound/vless_ws_outbound.cpp
 )
 target_include_directories(sbox PRIVATE src)
