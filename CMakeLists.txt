@@ -18,6 +18,7 @@ add_executable(sbox
     src/transport/ws_client.cpp
     src/protocol/vless.cpp
     src/platform/windows_proxy.cpp
+    src/core/log.cpp
 )
 target_include_directories(sbox PRIVATE src)
 target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json wininet)

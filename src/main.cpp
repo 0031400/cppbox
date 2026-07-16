@@ -11,6 +11,7 @@
 #include "route/router.hpp"
 #include "transport/ws_client.hpp"
 #include <Windows.h>
+#include <atomic>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -23,7 +24,10 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-sbox::WindowsProxyGuard *g_windows_proxy = nullptr;
+#ifdef _WIN32
+boost::asio::io_context *g_io = nullptr;
+std::atomic_bool g_stopping = false;
+std::atomic_bool g_windows_proxy = false;
 BOOL WINAPI consoleCtrlHandler(DWORD signal) {
   switch (signal) {
   case CTRL_C_EVENT:
@@ -31,17 +35,29 @@ BOOL WINAPI consoleCtrlHandler(DWORD signal) {
   case CTRL_CLOSE_EVENT:
   case CTRL_LOGOFF_EVENT:
   case CTRL_SHUTDOWN_EVENT:
-    if (g_windows_proxy != nullptr) {
-      g_windows_proxy->reset();
+    if (g_stopping.exchange(true)) {
+      return TRUE;
+    }
+    if (g_io != nullptr && !g_io->stopped()) {
+      sbox::log_info("stopping");
+      g_io->stop();
+    }
+    if (g_windows_proxy) {
+      sbox::unsetWindowsProxy();
+      sbox::log_info("unset windows proxy");
     }
     return FALSE;
   default:
     return FALSE;
   }
 }
+#endif
 int main() {
   try {
     boost::asio::io_context io;
+#ifdef _WIN32
+    g_io = &io;
+#endif
     auto config = sbox::load_config("config.json");
     sbox::Router router(config.route);
     std::unordered_map<std::string, std::shared_ptr<sbox::Outbound>> outbounds;
@@ -95,15 +111,21 @@ int main() {
         inbounds[inbound_config.tag] = inbound;
       }
     }
-    sbox::WindowsProxyGuard windows_proxy(config.windows_proxy.enabled,
-                                          config.windows_proxy.addr,
-                                          config.windows_proxy.port);
-    g_windows_proxy = &windows_proxy;
+#ifdef _WIN32
     SetConsoleCtrlHandler(consoleCtrlHandler, TRUE);
+    if (config.windows_proxy.enabled) {
+      sbox::setWindowsProxy(config.windows_proxy.addr,
+                            config.windows_proxy.port);
+      g_windows_proxy = true;
+      sbox::log_info("set windows proxy: http://" + config.windows_proxy.addr +
+                     ":" + std::to_string(config.windows_proxy.port));
+#else
+    if (config.windows_proxy.enabled) {
+      sbox::log_info("windows proxy only support windows");
+    }
+#endif
+    }
     io.run();
-    SetConsoleCtrlHandler(consoleCtrlHandler, FALSE);
-    g_windows_proxy = nullptr;
-
   } catch (const std::exception &e) {
     sbox::log_error(e.what());
     return 1;
