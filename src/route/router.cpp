@@ -144,7 +144,7 @@ bool Router::match_ip_cidr(const RouteRuleConfig &rule,
         if (cidr.find(':') == std::string::npos) {
           continue;
         }
-        if (match_ipv4_cidr(dst.host, cidr)) {
+        if (match_ipv6_cidr(dst.host, cidr)) {
           return true;
         }
       }

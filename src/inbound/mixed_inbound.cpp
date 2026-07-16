@@ -203,7 +203,7 @@ Destination
 MixedInbound::parse_http_absolute_target(const std::string &target) {
   constexpr std::string_view prefix = "http://";
   require(target.rfind(prefix, 0) == 0,
-          "only absolute-form requirest is supported");
+          "only absolute-form request is supported");
   std::string rest = target.substr(prefix.size());
   auto slash = rest.find('/');
   std::string authority =

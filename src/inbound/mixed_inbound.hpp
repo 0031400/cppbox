@@ -22,8 +22,6 @@ private:
                                                   AddressType type);
   static Destination parse_connect_target(const std::string &target);
   static Destination parse_http_absolute_target(const std::string &target);
-  static std::string find_http_header(const std::string &headers,
-                                      const std::string &name);
   static std::vector<unsigned char>
   build_http_initial_payload(const std::string &header, std::size_t header_size,
                              const std::string &method,
