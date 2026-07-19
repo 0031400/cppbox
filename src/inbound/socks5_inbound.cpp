@@ -2,8 +2,6 @@
 #include "core/session.hpp"
 #include "core/utils.hpp"
 #include "protocol/socks5.hpp"
-#include <algorithm>
-#include <array>
 #include <boost/asio.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -15,8 +13,6 @@
 #include <core/log.hpp>
 #include <exception>
 #include <functional>
-#include <stdexcept>
-#include <vector>
 
 namespace sbox {
 
