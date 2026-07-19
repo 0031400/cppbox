@@ -1,17 +1,18 @@
 #pragma once
 #include "core/net.hpp"
 #include "core/session.hpp"
+#include "inbound/inbound.hpp"
 #include <boost/asio/awaitable.hpp>
 #include <functional>
 #include <vector>
 
 namespace sbox {
-class MixedInbound {
+class MixedInbound : public Inbound {
 
 public:
   using Handler = std::function<asio::awaitable<void>(tcp::socket, Session)>;
   MixedInbound(asio::io_context &io, tcp::endpoint endpoint, Handler handler);
-  asio::awaitable<void> start();
+  asio::awaitable<void> start() override;
 
 private:
   asio::awaitable<void> handle_client(tcp::socket socket);
@@ -26,8 +27,7 @@ private:
   build_http_initial_payload(const std::string &header, std::size_t header_size,
                              const std::string &method,
                              const std::string &target,
-                             const std::string &version
-  );
+                             const std::string &version);
   static std::string trim(std::string text);
   asio::awaitable<void> write_socks_success_reply(tcp::socket &socket);
   asio::awaitable<void> write_http_success_reply(tcp::socket &socket);

@@ -77,9 +77,9 @@ bool Router::match_domain(const RouteRuleConfig &rule, const Destination &dst) {
 }
 std::uint32_t Router::ipv4_to_u32(const boost::asio::ip::address_v4 &ip) {
   auto b = ip.to_bytes();
-  return (static_cast<std::uint32_t>(b[0] << 24)) |
-         (static_cast<std::uint32_t>(b[1] << 16)) |
-         (static_cast<std::uint32_t>(b[2] << 8)) |
+  return (static_cast<std::uint32_t>(b[0]) << 24) |
+         (static_cast<std::uint32_t>(b[1]) << 16) |
+         (static_cast<std::uint32_t>(b[2]) << 8) |
          (static_cast<std::uint32_t>(b[3]));
 }
 

@@ -1,5 +1,4 @@
 #include "platform/windows_proxy.hpp"
-#include "core/log.hpp"
 #include <string>
 #include <windows.h>
 #include <wininet.h>

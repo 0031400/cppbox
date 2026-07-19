@@ -12,11 +12,14 @@ add_executable(sbox
     src/route/rule_set.cpp
     src/inbound/socks5_inbound.cpp
     src/inbound/mixed_inbound.cpp
+    src/inbound/http_inbound.cpp
     src/outbound/direct_outbound.cpp
     src/outbound/block_outbound.cpp
     src/outbound/vless_outbound.cpp
     src/transport/ws_client.cpp
     src/protocol/vless.cpp
+    src/protocol/http_proxy.cpp
+    src/protocol/socks5.cpp
     src/platform/windows_proxy.cpp
     src/core/log.cpp
 )
