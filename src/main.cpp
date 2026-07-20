@@ -71,18 +71,11 @@ int main() {
       } else if (item.type == "vless") {
         outbounds[item.tag] = std::make_shared<sbox::VlessOutbound>(
             io, sbox::VlessOutboundConfig{
+                    .server = item.server,
+                    .server_port = item.server_port,
                     .vless = sbox::VlessConfig{.uuid = item.uuid},
-                    .transport = sbox::WsClientConfig{
-                        .server_host = item.server,
-                        .server_port = item.server_port,
-                        .path = item.ws.path,
-                        .host_header = item.ws.host,
-                        .tls = sbox::TlsClientConfig{
-                            .enabled = item.tls.enabled,
-                            .server_name = item.tls.server_name.empty()
-                                               ? item.server
-                                               : item.tls.server_name,
-                            .insecure = item.tls.insecure}}});
+                    .tls = item.tls,
+                    .transport = item.transport});
       } else if (item.type == "block") {
         outbounds[item.tag] = std::make_shared<sbox::BlockOutbound>();
       }
@@ -94,10 +87,14 @@ int main() {
       std::cout << "[route] " << session.destination.host << ":"
                 << session.destination.port << " -> " << tag << std::endl;
       auto it = outbounds.find(tag);
-      if (it == outbounds.end()) {
-        throw std::runtime_error("outbound not found: " + tag);
+      try {
+        if (it == outbounds.end()) {
+          throw std::runtime_error("outbound not found: " + tag);
+        }
+        co_await it->second->handle(std::move(socket), std::move(session));
+      } catch (const std::exception &e) {
+        sbox::log_error(e.what());
       }
-      co_await it->second->handle(std::move(socket), std::move(session));
     };
     for (const auto &inbound_config : config.inbounds) {
       auto endpoint = sbox::tcp::endpoint{

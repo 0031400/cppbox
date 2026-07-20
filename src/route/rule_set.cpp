@@ -8,6 +8,33 @@
 #include <stdexcept>
 #include <utility>
 namespace sbox {
+namespace {
+
+std::string get_string(const json::object &o, const char *key,
+                       std::string def = {}) {
+  auto it = o.find(key);
+  if (it == o.end()) {
+    return def;
+  }
+  return std::string(it->value().as_string());
+}
+std::vector<std::string> get_string_array(const json::object &o,
+                                          const char *key) {
+  std::vector<std::string> out;
+  auto it = o.find(key);
+  if (it == o.end()) {
+    return out;
+  }
+  if (it->value().is_string()) {
+    out.emplace_back(it->value().as_string());
+    return out;
+  }
+  for (const auto &item : it->value().as_array()) {
+    out.emplace_back(item.as_string());
+  }
+  return out;
+}
+}; // namespace
 RuleSet RuleSet::load_source(const std::string &path) {
   std::ifstream file(path);
   if (!file) {
