@@ -2,6 +2,7 @@
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
 #include <cstdint>
+#include <exception>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -9,46 +10,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#include "common/json_common.hpp"
 namespace sbox {
-namespace {
-
-std::string get_string(const json::object &o, const char *key) {
-  return std::string(o.at(key).as_string());
-}
-bool get_bool(const json::object &o, const char *key) {
-  return o.at(key).as_bool();
-}
-std::uint16_t get_u16(const json::object &o, const char *key) {
-  auto v = o.at(key).as_int64();
-  if (v > UINT16_MAX) {
-    throw std::runtime_error("need u16");
-  }
-  return static_cast<std::uint16_t>(v);
-}
-std::vector<std::string> get_string_array(const json::object &o,
-                                          const char *key, bool force = false) {
-  if (!o.if_contains(key)) {
-    return {};
-  }
-  auto &value = o.at(key);
-  if (value.is_string()) {
-    return {std::string(value.as_string())};
-  }
-  if (value.is_array()) {
-    std::vector<std::string> out;
-    for (const auto &item : value.as_array()) {
-      out.emplace_back(item.as_string());
-    }
-    return out;
-  }
-  if (force) {
-    throw std::runtime_error("need string or string array");
-  }
-  return {};
-}
-
-}; // namespace
 
 AppConfig load_config(const std::string &path) {
   std::ifstream file(path);
@@ -129,7 +92,8 @@ AppConfig load_config(const std::string &path) {
       rule.ip_cidr = get_string_array(obj, "ip_cidr");
       rule.rule_set = get_string_array(obj, "rule_set");
       if (rule.domain.empty() && rule.domain_keyword.empty() &&
-          rule.domain_suffix.empty() && rule.ip_cidr.empty()&&rule.rule_set.empty()) {
+          rule.domain_suffix.empty() && rule.ip_cidr.empty() &&
+          rule.rule_set.empty()) {
         throw std::runtime_error("rule must be not null");
       }
       rule.outbound = get_string(obj, "outbound");

@@ -7,6 +7,7 @@ find_package(Boost REQUIRED COMPONENTS system json)
 find_package(OpenSSL REQUIRED)
 add_executable(sbox
     src/main.cpp
+    src/common/json_common.cpp
     src/config/config.cpp
     src/core/log.cpp
     src/inbound/http_inbound.cpp
