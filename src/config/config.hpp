@@ -10,13 +10,13 @@ namespace json = boost::json;
 struct InboundConfig {
   std::string type;
   std::string tag;
-  std::string listen = "127.0.0.1";
-  std::uint16_t listen_port = 1080;
+  std::string listen;
+  std::uint16_t listen_port;
 };
 struct TlsConfig {
-  bool enabled = false;
+  bool enabled;
   std::string server_name;
-  bool insecure = false;
+  bool insecure;
 };
 struct TransportConfig {
   std::string type;
@@ -26,7 +26,7 @@ struct OutboundConfig {
   std::string type;
   std::string tag;
   std::string server;
-  std::uint16_t server_port = 0;
+  std::uint16_t server_port;
   std::string uuid;
   std::optional<TlsConfig> tls;
   std::optional<TransportConfig> transport;
@@ -52,9 +52,9 @@ struct RouteConfig {
   std::vector<RuleSetConfig> rule_sets;
 };
 struct WindowsProxyConfig {
-  bool enabled = false;
-  std::string addr = "127.0.0.1";
-  std::uint16_t port = 1080;
+  bool enabled;
+  std::string addr;
+  std::uint16_t port;
 };
 struct AppConfig {
   std::vector<InboundConfig> inbounds;

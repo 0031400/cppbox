@@ -12,7 +12,6 @@
 #include "platform/windows_proxy.hpp"
 #include "protocol/vless.hpp"
 #include "route/router.hpp"
-#include "transport/ws_client.hpp"
 #include <Windows.h>
 #include <atomic>
 #include <boost/asio/awaitable.hpp>

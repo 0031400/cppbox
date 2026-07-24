@@ -1,53 +1,53 @@
 #include "config/config.hpp"
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
+#include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
+
 namespace sbox {
 namespace {
 
-std::string get_string(const json::object &o, const char *key,
-                       std::string def = {}) {
-  auto it = o.find(key);
-  if (it == o.end()) {
-    return def;
-  }
-  return std::string(it->value().as_string());
+std::string get_string(const json::object &o, const char *key) {
+  return std::string(o.at(key).as_string());
 }
-bool get_bool(const json::object &o, const char *key, bool def = false) {
-  auto it = o.find(key);
-  if (it == o.end()) {
-    return def;
-  }
-  return it->value().as_bool();
+bool get_bool(const json::object &o, const char *key) {
+  return o.at(key).as_bool();
 }
-std::uint16_t get_u16(const json::object &o, const char *key,
-                      std::uint16_t def = 0) {
-  auto it = o.find(key);
-  if (it == o.end()) {
-    return def;
+std::uint16_t get_u16(const json::object &o, const char *key) {
+  auto v = o.at(key).as_int64();
+  if (v > UINT16_MAX) {
+    throw std::runtime_error("need u16");
   }
-  return static_cast<std::uint16_t>(it->value().as_int64());
+  return static_cast<std::uint16_t>(v);
 }
 std::vector<std::string> get_string_array(const json::object &o,
-                                          const char *key) {
-  std::vector<std::string> out;
-  auto it = o.find(key);
-  if (it == o.end()) {
+                                          const char *key, bool force = false) {
+  if (!o.if_contains(key)) {
+    return {};
+  }
+  auto &value = o.at(key);
+  if (value.is_string()) {
+    return {std::string(value.as_string())};
+  }
+  if (value.is_array()) {
+    std::vector<std::string> out;
+    for (const auto &item : value.as_array()) {
+      out.emplace_back(item.as_string());
+    }
     return out;
   }
-  if (it->value().is_string()) {
-    out.emplace_back(it->value().as_string());
-    return out;
+  if (force) {
+    throw std::runtime_error("need string or string array");
   }
-  for (const auto &item : it->value().as_array()) {
-    out.emplace_back(item.as_string());
-  }
-  return out;
+  return {};
 }
+
 }; // namespace
 
 AppConfig load_config(const std::string &path) {
@@ -74,29 +74,29 @@ AppConfig load_config(const std::string &path) {
     OutboundConfig outbound;
     outbound.type = get_string(obj, "type");
     outbound.tag = get_string(obj, "tag");
-    outbound.server = get_string(obj, "server");
-    outbound.server_port = get_u16(obj, "server_port");
     if (outbound.type == "vless") {
+      outbound.server = get_string(obj, "server");
+      outbound.server_port = get_u16(obj, "server_port");
       // vless uuid
       outbound.uuid = get_string(obj, "uuid");
       // vless tls
-      if (auto it = obj.find("tls"); it != obj.end()) {
-        const auto &tls_obj = it->value().as_object();
-
+      if (auto it = obj.if_contains("tls"); it && it->is_object()) {
+        auto &tls_obj = it->as_object();
         TlsConfig tls;
         tls.enabled = get_bool(tls_obj, "enabled");
-        tls.server_name = get_string(tls_obj, "server_name");
-        tls.insecure = get_bool(tls_obj, "insecure");
-
+        if (tls.enabled) {
+          tls.server_name = get_string(tls_obj, "server_name");
+          tls.insecure = get_bool(tls_obj, "insecure");
+        }
         outbound.tls = std::move(tls);
       }
       // vless transport
-      if (auto it = obj.find("transport"); it != obj.end()) {
-        const auto &transport_obj = it->value().as_object();
+      if (auto it = obj.if_contains("transport"); it && it->is_object()) {
+        const auto &transport_obj = it->as_object();
         // vless transport websocket
         TransportConfig transport;
         transport.type = get_string(transport_obj, "type");
-        transport.path = get_string(transport_obj, "path", "/");
+        transport.path = get_string(transport_obj, "path");
         outbound.transport = std::move(transport);
       }
     }
@@ -106,9 +106,9 @@ AppConfig load_config(const std::string &path) {
   const auto &route = root["route"].as_object();
   // route final
   config.route.final_outbound = get_string(route, "final");
-  if (auto it = route.find("rule_set"); it != route.end()) {
+  if (auto it = route.if_contains("rule_set"); it && it->is_array()) {
     // route rule_set
-    for (const auto &item : it->value().as_array()) {
+    for (const auto &item : it->as_array()) {
       const auto &obj = item.as_object();
       RuleSetConfig rule_set;
       rule_set.type = get_string(obj, "type");
@@ -118,9 +118,9 @@ AppConfig load_config(const std::string &path) {
       config.route.rule_sets.push_back(std::move(rule_set));
     }
   }
-  if (auto it = route.find("rules"); it != route.end()) {
+  if (auto it = route.if_contains("rules"); it && it->is_array()) {
     // route rules
-    for (const auto &item : it->value().as_array()) {
+    for (const auto &item : it->as_array()) {
       const auto &obj = item.as_object();
       RouteRuleConfig rule;
       rule.domain = get_string_array(obj, "domain");
@@ -128,15 +128,21 @@ AppConfig load_config(const std::string &path) {
       rule.domain_keyword = get_string_array(obj, "domain_keyword");
       rule.ip_cidr = get_string_array(obj, "ip_cidr");
       rule.rule_set = get_string_array(obj, "rule_set");
+      if (rule.domain.empty() && rule.domain_keyword.empty() &&
+          rule.domain_suffix.empty() && rule.ip_cidr.empty()&&rule.rule_set.empty()) {
+        throw std::runtime_error("rule must be not null");
+      }
       rule.outbound = get_string(obj, "outbound");
       config.route.rules.push_back(std::move(rule));
     }
   }
-  if (auto it = root.find("windows_proxy"); it != root.end()) {
-    const auto &windows_proxy = it->value().as_object();
+  if (auto it = root.if_contains("windows_proxy"); it && it->is_object()) {
+    const auto &windows_proxy = it->as_object();
     config.windows_proxy.enabled = get_bool(windows_proxy, "enabled");
-    config.windows_proxy.addr = get_string(windows_proxy, "addr");
-    config.windows_proxy.port = get_u16(windows_proxy, "port");
+    if (config.windows_proxy.enabled) {
+      config.windows_proxy.addr = get_string(windows_proxy, "addr");
+      config.windows_proxy.port = get_u16(windows_proxy, "port");
+    }
   }
   return config;
 }
