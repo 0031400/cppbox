@@ -66,6 +66,11 @@ struct DnsConfig {
   DnsItemConfig proxyServerNameserver;
   DnsItemConfig defaultNameserver;
 };
+struct TunConfig {
+  bool enable = false;
+  std::string tun_ip;
+  std::string tun_next_ip;
+};
 struct AppConfig {
   std::vector<InboundConfig> inbounds;
   std::vector<OutboundConfig> outbounds;
@@ -73,6 +78,7 @@ struct AppConfig {
   WindowsProxyConfig windows_proxy;
   DnsConfig dns;
   bool override_address = false;
+  TunConfig tun;
 };
 AppConfig load_config(const std::string &path);
 }; // namespace sbox

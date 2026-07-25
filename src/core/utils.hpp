@@ -59,8 +59,8 @@ inline void close_socket(tcp::socket &socket) {
   if (!socket.is_open()) {
     return;
   }
-  ignored = socket.cancel(ignored);
-  ignored = socket.shutdown(tcp::socket::shutdown_both, ignored);
-  ignored = socket.close(ignored);
+  socket.cancel(ignored);
+  socket.shutdown(tcp::socket::shutdown_both, ignored);
+  socket.close(ignored);
 }
 }; // namespace sbox

@@ -135,6 +135,14 @@ AppConfig load_config(const std::string &path) {
   if (auto it = root.if_contains("override_address"); it && it->is_bool()) {
     config.override_address = it->as_bool();
   }
+  if (auto it = root.if_contains("tun"); it && it->is_object()) {
+    const auto &tun = it->as_object();
+    config.tun.enable = get_bool(tun, "enable");
+    if (config.tun.enable) {
+      config.tun.tun_ip = get_string(tun, "tun_ip");
+      config.tun.tun_next_ip = get_string(tun, "tun_next_ip");
+    }
+  }
   return config;
 }
 }; // namespace sbox

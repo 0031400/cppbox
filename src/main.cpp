@@ -7,6 +7,8 @@
 #include "inbound/inbound.hpp"
 #include "inbound/mixed_inbound.hpp"
 #include "inbound/socks5_inbound.hpp"
+#include "inbound/tun_inbound.hpp"
+#include "inbound/tun_route.hpp"
 #include "outbound/block_outbound.hpp"
 #include "outbound/direct_outbound.hpp"
 #include "outbound/outbound.hpp"
@@ -36,6 +38,8 @@ int main() {
     sbox::Connector connector(dnsServer);
     sbox::Router router(config.route);
     std::unordered_map<std::string, std::shared_ptr<sbox::Outbound>> outbounds;
+    std::shared_ptr<sbox::Inbound> tun_inbound;
+
     for (const auto &item : config.outbounds) {
       if (item.type == "direct") {
         outbounds[item.tag] =
@@ -59,6 +63,7 @@ int main() {
         outbounds[item.tag] = std::make_shared<sbox::BlockOutbound>();
       }
     }
+
     std::unordered_map<std::string, std::shared_ptr<sbox::Inbound>> inbounds;
     auto handler = [&](sbox::tcp::socket socket,
                        sbox::Session session) -> boost::asio::awaitable<void> {
@@ -75,6 +80,26 @@ int main() {
         sbox::log_error(e.what());
       }
     };
+    if (config.tun.enable) {
+      auto outbound_index = sbox::find_best_interface_index_for_ipv4("8.8.8.8");
+      if (!outbound_index) {
+        throw std::runtime_error("failed to find outbound interface for tun");
+      }
+
+      connector.set_outbound_interface_index(*outbound_index);
+      sbox::log_info("tun outbound interface index: " +
+                     std::to_string(*outbound_index));
+      tun_inbound = std::make_shared<sbox::TunInbound>(
+          io,
+          sbox::TunInboundConfig{
+              .tun_ip = config.tun.tun_ip,
+              .tun_next_ip = config.tun.tun_next_ip,
+          },
+          handler);
+      boost::asio::co_spawn(io, tun_inbound->start(), boost::asio::detached);
+      inbounds["tun"] = tun_inbound;
+      sbox::log_info("sbox tun inbound enabled: " + config.tun.tun_ip);
+    }
     for (const auto &inbound_config : config.inbounds) {
       auto endpoint = sbox::tcp::endpoint{
           boost::asio::ip::make_address(inbound_config.listen),

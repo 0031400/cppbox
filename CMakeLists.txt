@@ -17,6 +17,11 @@ add_executable(sbox
     src/inbound/http_inbound.cpp
     src/inbound/mixed_inbound.cpp
     src/inbound/socks5_inbound.cpp
+    src/inbound/tun_wintun.cpp
+    src/inbound/tun_route.cpp
+    src/inbound/tun_nat.cpp
+    src/inbound/tun_inbound.cpp
+    src/inbound/tun_checksum.cpp
     src/outbound/block_outbound.cpp
     src/outbound/direct_outbound.cpp
     src/outbound/vless_outbound.cpp
@@ -37,13 +42,15 @@ if(WIN32)
     )
 endif()
 target_include_directories(sbox PRIVATE src)
+target_compile_definitions(
+    sbox PRIVATE BOOST_ASIO_NO_DEPRECATED
+)
 target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
 if(WIN32)
-    target_link_libraries(sbox PRIVATE wininet)
     target_compile_definitions(sbox PRIVATE
-        _WIN32_WINNT=0x0601
+        _WIN32_WINNT=0x0A00
     )
-    target_link_libraries(sbox PRIVATE crypt32)
+    target_link_libraries(sbox PRIVATE crypt32 iphlpapi ws2_32 wininet)
 endif()
 if(MSVC)
     target_compile_options(sbox PRIVATE /bigobj)

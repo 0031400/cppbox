@@ -69,9 +69,9 @@ public:
   void close() override {
     error_code ignored;
     auto &socket = beast::get_lowest_layer(ws_);
-    ignored = socket.cancel(ignored);
-    ignored = socket.shutdown(tcp::socket::shutdown_both, ignored);
-    ignored = socket.close(ignored);
+     socket.cancel(ignored);
+     socket.shutdown(tcp::socket::shutdown_both, ignored);
+     socket.close(ignored);
   }
 
 private:
@@ -127,9 +127,9 @@ public:
   void close() override {
     error_code ignored;
     auto &socket = beast::get_lowest_layer(ws_);
-    ignored = socket.cancel(ignored);
-    ignored = socket.shutdown(tcp::socket::shutdown_both, ignored);
-    ignored = socket.close(ignored);
+     socket.cancel(ignored);
+     socket.shutdown(tcp::socket::shutdown_both, ignored);
+     socket.close(ignored);
   }
 
 private:
