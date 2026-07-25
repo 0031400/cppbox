@@ -14,6 +14,7 @@
 #include <memory>
 #include <vector>
 
+#include "dns/dns.hpp"
 namespace sbox {
 
 namespace beast = boost::beast;
@@ -30,12 +31,13 @@ struct WsClientConfig {
 };
 class WsClient {
 public:
-  explicit WsClient(asio::io_context &io, WsClientConfig config);
+  explicit WsClient(asio::io_context &io, WsClientConfig config,
+                    DnsServer &dns_server);
   asio::awaitable<std::unique_ptr<Stream>> connect();
 
 private:
   ssl::context ssl_context_;
-  tcp::resolver resolver_;
+  DnsServer dns_server_;
   WsClientConfig config_;
 };
 }; // namespace sbox

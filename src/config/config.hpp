@@ -56,11 +56,22 @@ struct WindowsProxyConfig {
   std::string addr;
   std::uint16_t port;
 };
+struct DnsItemConfig {
+  std::string type;
+  std::string server;
+  std::uint16_t server_port;
+  std::string path;
+};
+struct DnsConfig {
+  DnsItemConfig proxyServerNameserver;
+  DnsItemConfig defaultNameserver;
+};
 struct AppConfig {
   std::vector<InboundConfig> inbounds;
   std::vector<OutboundConfig> outbounds;
   RouteConfig route;
   WindowsProxyConfig windows_proxy;
+  DnsConfig dns;
 };
 AppConfig load_config(const std::string &path);
 }; // namespace sbox

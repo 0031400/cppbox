@@ -10,6 +10,9 @@ add_executable(sbox
     src/common/json_common.cpp
     src/config/config.cpp
     src/core/log.cpp
+    src/dns/dns.cpp
+    src/dns/dns_message.cpp
+    src/dns/transport.cpp
     src/inbound/http_inbound.cpp
     src/inbound/mixed_inbound.cpp
     src/inbound/socks5_inbound.cpp
@@ -26,10 +29,14 @@ add_executable(sbox
     src/transport/tcp_client.cpp
 )
 target_include_directories(sbox PRIVATE src)
-target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json wininet)
-target_compile_definitions(sbox PRIVATE
-    _WIN32_WINNT=0x0601
-)
+target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
+if(WIN32)
+    target_link_libraries(sbox PRIVATE wininet)
+    target_compile_definitions(sbox PRIVATE
+        _WIN32_WINNT=0x0601
+    )
+    target_link_libraries(sbox PRIVATE crypt32)
+endif()
 if(MSVC)
     target_compile_options(sbox PRIVATE /bigobj)
 endif()

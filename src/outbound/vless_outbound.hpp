@@ -1,5 +1,6 @@
 #pragma once
 #include "config/config.hpp"
+#include "dns/dns.hpp"
 #include "outbound/outbound.hpp"
 #include "protocol/vless.hpp"
 #include "transport/ws_client.hpp"
@@ -15,7 +16,8 @@ struct VlessOutboundConfig {
 };
 class VlessOutbound : public Outbound {
 public:
-  explicit VlessOutbound(asio::io_context &io, VlessOutboundConfig config);
+  explicit VlessOutbound(asio::io_context &io, VlessOutboundConfig config,
+                         DnsServer &dns_server);
 
   asio::awaitable<void> handle(tcp::socket socket, Session session) override;
 
@@ -28,5 +30,6 @@ private:
   asio::io_context &io_;
   VlessOutboundConfig config_;
   VlessProtocol protocol_;
+  DnsServer dns_server_;
 };
 }; // namespace sbox

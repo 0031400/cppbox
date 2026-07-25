@@ -110,8 +110,9 @@ private:
   Socket stream_;
 };
 }; // namespace
-TcpClient::TcpClient(asio::io_context &io, TcpClientConfig config)
-    : ssl_context_(ssl::context::tls_client), resolver_(io),
+TcpClient::TcpClient(asio::io_context &io, TcpClientConfig config,
+                     DnsServer &dns_server)
+    : ssl_context_(ssl::context::tls_client), dns_server_(dns_server),
       config_(std::move(config)) { // namespace
   if (config_.tls.enabled) {
     if (config_.tls.server_name.empty()) {
@@ -128,16 +129,17 @@ TcpClient::TcpClient(asio::io_context &io, TcpClientConfig config)
 
 asio::awaitable<std::unique_ptr<Stream>> TcpClient::connect() {
   auto port = std::to_string(config_.server_port);
-  auto results = co_await resolver_.async_resolve(config_.server_host, port,
-                                                  asio::use_awaitable);
   if (!config_.tls.enabled) {
     tcp::socket socket(co_await asio::this_coro::executor);
-    co_await asio::async_connect(socket, results, asio::use_awaitable);
+    co_await dns_server_.async_tcp_connect(socket, config_.server_host,
+                                           config_.server_port);
     co_return std::make_unique<PlainTcpStream>(std::move(socket));
   }
+
   TlsTcpStream::Socket stream(co_await asio::this_coro::executor, ssl_context_);
-  co_await asio::async_connect(beast::get_lowest_layer(stream), results,
-                               asio::use_awaitable);
+  co_await dns_server_.async_tcp_connect(beast::get_lowest_layer(stream),
+                                         config_.server_host,
+                                         config_.server_port);
   if (!SSL_set_tlsext_host_name(stream.native_handle(),
                                 config_.tls.server_name.c_str())) {
 

@@ -1,4 +1,5 @@
 #include "config/config.hpp"
+#include "common/json_common.hpp"
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
 #include <cstdint>
@@ -10,7 +11,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "common/json_common.hpp"
+
 namespace sbox {
 
 AppConfig load_config(const std::string &path) {
@@ -108,6 +109,29 @@ AppConfig load_config(const std::string &path) {
       config.windows_proxy.port = get_u16(windows_proxy, "port");
     }
   }
+  // dns
+  auto &dns_obj = root.at("dns").as_object();
+  auto &proxyServerNameserver_obj =
+      dns_obj.at("proxyServerNameserver").as_object();
+  auto &defaultNameserver_obj = dns_obj.at("defaultNameserver").as_object();
+  DnsItemConfig proxyServerNameserver;
+  DnsItemConfig defaultNameserver;
+  proxyServerNameserver.server =
+      get_string(proxyServerNameserver_obj, "server");
+  proxyServerNameserver.server_port =
+      get_u16(proxyServerNameserver_obj, "server_port");
+  proxyServerNameserver.type = get_string(proxyServerNameserver_obj, "type");
+  proxyServerNameserver.server =
+      get_string(proxyServerNameserver_obj, "server");
+  if (proxyServerNameserver.type == "https") {
+    proxyServerNameserver.path = get_string(proxyServerNameserver_obj, "path");
+  }
+  defaultNameserver.server = get_string(defaultNameserver_obj, "server");
+  defaultNameserver.server_port = get_u16(defaultNameserver_obj, "server_port");
+  defaultNameserver.type = get_string(defaultNameserver_obj, "type");
+  defaultNameserver.server = get_string(defaultNameserver_obj, "server");
+  config.dns.proxyServerNameserver = proxyServerNameserver;
+  config.dns.defaultNameserver = defaultNameserver;
   return config;
 }
 }; // namespace sbox

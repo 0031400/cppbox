@@ -29,14 +29,18 @@ TlsConfig normalize_tls(const std::optional<TlsConfig> &tls,
   return out;
 }
 }; // namespace
-VlessOutbound::VlessOutbound(asio::io_context &io, VlessOutboundConfig config)
-    : io_(io), config_(std::move(config)), protocol_(config_.vless) {}
+VlessOutbound::VlessOutbound(asio::io_context &io, VlessOutboundConfig config,
+                             DnsServer &dns_server)
+    : io_(io), config_(std::move(config)), protocol_(config_.vless),
+      dns_server_(dns_server) {}
 asio::awaitable<std::unique_ptr<Stream>> VlessOutbound::connect_stream() {
   auto tls = normalize_tls(config_.tls, config_.server);
   if (!config_.transport || config_.transport->type.empty()) {
-    TcpClient client(io_, TcpClientConfig{.server_host = config_.server,
-                                          .server_port = config_.server_port,
-                                          .tls = tls});
+    TcpClient client(io_,
+                     TcpClientConfig{.server_host = config_.server,
+                                     .server_port = config_.server_port,
+                                     .tls = tls},
+                     dns_server_);
     co_return co_await client.connect();
   }
   if (config_.transport && config_.transport->type == "ws") {
@@ -46,7 +50,7 @@ asio::awaitable<std::unique_ptr<Stream>> VlessOutbound::connect_stream() {
     ws_config.path = config_.transport->path;
     ws_config.host_header = config_.server;
     ws_config.tls = tls;
-    WsClient client(io_, std::move(ws_config));
+    WsClient client(io_, std::move(ws_config), dns_server_);
     co_return co_await client.connect();
   }
   throw std::runtime_error("unsupported vless transport");

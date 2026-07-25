@@ -118,8 +118,9 @@ private:
 };
 
 }; // namespace
-WsClient::WsClient(asio::io_context &io, WsClientConfig config)
-    : ssl_context_(ssl::context::tls_client), resolver_(io),
+WsClient::WsClient(asio::io_context &io, WsClientConfig config,
+                   DnsServer &dns_server)
+    : ssl_context_(ssl::context::tls_client), dns_server_(dns_server),
       config_(std::move(config)) {
   if (config_.host_header.empty()) {
     config_.host_header = config_.server_host;
@@ -139,13 +140,11 @@ WsClient::WsClient(asio::io_context &io, WsClientConfig config)
 
 asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
   auto port = std::to_string(config_.server_port);
-  auto results = co_await resolver_.async_resolve(config_.server_host, port,
-                                                  asio::use_awaitable);
 
   if (!config_.tls.enabled) {
     websocket::stream<tcp::socket> ws(co_await asio::this_coro::executor);
-    co_await asio::async_connect(beast::get_lowest_layer(ws), results,
-                                 asio::use_awaitable);
+    co_await dns_server_.async_tcp_connect(
+        beast::get_lowest_layer(ws), config_.server_host, config_.server_port);
     ws.set_option(
         websocket::stream_base::decorator([this](websocket::request_type &req) {
           req.set(beast::http::field::host, config_.host_header);
@@ -160,8 +159,8 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
   }
 
   TlsWsStream::Socket ws(co_await asio::this_coro::executor, ssl_context_);
-  co_await asio::async_connect(beast::get_lowest_layer(ws), results,
-                               asio::use_awaitable);
+  co_await dns_server_.async_tcp_connect(
+      beast::get_lowest_layer(ws), config_.server_host, config_.server_port);
 
   if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(),
                                 config_.tls.server_name.c_str())) {

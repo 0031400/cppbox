@@ -1,6 +1,7 @@
 #include "config/config.hpp"
 #include "core/log.hpp"
 #include "core/session.hpp"
+#include "dns/dns.hpp"
 #include "inbound/http_inbound.hpp"
 #include "inbound/inbound.hpp"
 #include "inbound/mixed_inbound.hpp"
@@ -62,6 +63,7 @@ int main() {
     g_io = &io;
 #endif
     auto config = sbox::load_config("config.json");
+    sbox::DnsServer dnsServer(config.dns);
     sbox::Router router(config.route);
     std::unordered_map<std::string, std::shared_ptr<sbox::Outbound>> outbounds;
     for (const auto &item : config.outbounds) {
@@ -69,12 +71,14 @@ int main() {
         outbounds[item.tag] = std::make_shared<sbox::DirectOutbound>(io);
       } else if (item.type == "vless") {
         outbounds[item.tag] = std::make_shared<sbox::VlessOutbound>(
-            io, sbox::VlessOutboundConfig{
-                    .server = item.server,
-                    .server_port = item.server_port,
-                    .vless = sbox::VlessConfig{.uuid = item.uuid},
-                    .tls = item.tls,
-                    .transport = item.transport});
+            io,
+            sbox::VlessOutboundConfig{.server = item.server,
+                                      .server_port = item.server_port,
+                                      .vless =
+                                          sbox::VlessConfig{.uuid = item.uuid},
+                                      .tls = item.tls,
+                                      .transport = item.transport},
+            dnsServer);
       } else if (item.type == "block") {
         outbounds[item.tag] = std::make_shared<sbox::BlockOutbound>();
       }
