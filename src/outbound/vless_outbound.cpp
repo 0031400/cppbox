@@ -90,10 +90,12 @@ asio::awaitable<void> VlessOutbound::handle(tcp::socket inbound,
 
       if (!session.initial_payload.empty()) {
         if (auto sni = sniff_tls_sni(session.initial_payload)) {
-          log_info("[vless] sni: " + destination.host.to_string() + " -> " +
-                   *sni);
-
-          destination.host = Host::domain(*sni);
+          const auto old_host = destination.host.to_string();
+          if (old_host != *sni) {
+            log_info("[vless] sni: " + destination.host.to_string() + " -> " +
+                     *sni);
+            destination.host = Host::domain(*sni);
+          }
         }
       }
     }
