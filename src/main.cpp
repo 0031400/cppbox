@@ -13,7 +13,6 @@
 #include "platform/windows_proxy.hpp"
 #include "protocol/vless.hpp"
 #include "route/router.hpp"
-#include <Windows.h>
 #include <atomic>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -29,6 +28,7 @@
 #include <utility>
 
 #ifdef _WIN32
+#include <Windows.h>
 boost::asio::io_context *g_io = nullptr;
 std::atomic_bool g_stopping = false;
 std::atomic_bool g_windows_proxy = false;
@@ -64,21 +64,27 @@ int main() {
 #endif
     auto config = sbox::load_config("config.json");
     sbox::DnsServer dnsServer(config.dns);
+    sbox::Connector connector(dnsServer);
     sbox::Router router(config.route);
     std::unordered_map<std::string, std::shared_ptr<sbox::Outbound>> outbounds;
     for (const auto &item : config.outbounds) {
       if (item.type == "direct") {
-        outbounds[item.tag] = std::make_shared<sbox::DirectOutbound>(io);
+        outbounds[item.tag] =
+            std::make_shared<sbox::DirectOutbound>(io, connector);
       } else if (item.type == "vless") {
         outbounds[item.tag] = std::make_shared<sbox::VlessOutbound>(
             io,
-            sbox::VlessOutboundConfig{.server = item.server,
-                                      .server_port = item.server_port,
-                                      .vless =
-                                          sbox::VlessConfig{.uuid = item.uuid},
-                                      .tls = item.tls,
-                                      .transport = item.transport},
-            dnsServer);
+            sbox::VlessOutboundConfig{
+                .server =
+                    sbox::Destination{
+                        .host = sbox::Host::parse(item.server),
+                        .port = item.server_port,
+                    },
+                .vless = sbox::VlessConfig{.uuid = item.uuid},
+                .tls = item.tls,
+                .transport = item.transport,
+            },
+            connector);
       } else if (item.type == "block") {
         outbounds[item.tag] = std::make_shared<sbox::BlockOutbound>();
       }
@@ -87,8 +93,8 @@ int main() {
     auto handler = [&](sbox::tcp::socket socket,
                        sbox::Session session) -> boost::asio::awaitable<void> {
       auto tag = router.pick_outbound(session);
-      std::cout << "[route] " << session.destination.host << ":"
-                << session.destination.port << " -> " << tag << std::endl;
+      std::cout << "[route] " << session.destination.to_string() << " -> "
+                << tag << std::endl;
       auto it = outbounds.find(tag);
       try {
         if (it == outbounds.end()) {

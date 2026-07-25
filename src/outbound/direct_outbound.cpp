@@ -6,22 +6,20 @@
 #include <boost/asio/this_coro.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/write.hpp>
-#include <exception>
 #include <core/log.hpp>
+#include <exception>
 #include <string>
 
 namespace sbox {
 
 using boost::asio::experimental::awaitable_operators::operator||;
-DirectOutbound::DirectOutbound(asio::io_context &io) : resolver_(io) {}
+DirectOutbound::DirectOutbound(asio::io_context &io, Connector &connector)
+    : connector_(connector) {}
 asio::awaitable<void> DirectOutbound::handle(tcp::socket inbound,
                                              Session session) {
   tcp::socket outbound(co_await asio::this_coro::executor);
   try {
-    auto results = co_await resolver_.async_resolve(
-        session.destination.host, std::to_string(session.destination.port),
-        asio::use_awaitable);
-    co_await asio::async_connect(outbound, results, asio::use_awaitable);
+    co_await connector_.connect(outbound, session.destination);
     if (!session.initial_payload.empty()) {
       co_await asio::async_write(
           outbound, asio::buffer(session.initial_payload), asio::use_awaitable);

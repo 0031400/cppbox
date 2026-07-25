@@ -27,6 +27,7 @@ add_executable(sbox
     src/route/rule_set.cpp
     src/transport/ws_client.cpp
     src/transport/tcp_client.cpp
+    src/transport/connector.cpp
 )
 target_include_directories(sbox PRIVATE src)
 target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)

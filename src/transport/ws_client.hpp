@@ -1,20 +1,21 @@
 #pragma once
+
 #include "config/config.hpp"
+#include "core/address.hpp"
 #include "core/net.hpp"
-#include "core/utils.hpp"
-#include "stream.hpp"
+#include "dns/dns.hpp"
+#include "transport/connector.hpp"
 #include "transport/stream.hpp"
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/io_context.hpp>
-#include <boost/asio/ssl.hpp>
 #include <boost/asio/ssl/context.hpp>
 #include <boost/beast.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
 #include <memory>
-#include <vector>
+#include <string>
 
-#include "dns/dns.hpp"
+
 namespace sbox {
 
 namespace beast = boost::beast;
@@ -22,22 +23,22 @@ namespace websocket = beast::websocket;
 namespace ssl = boost::asio::ssl;
 
 struct WsClientConfig {
-  std::string server_host;
-  std::uint16_t server_port = 443;
-  std::string uuid;
+  Destination server;
   std::string path = "/";
   std::string host_header;
   TlsConfig tls;
 };
+
 class WsClient {
 public:
-  explicit WsClient(asio::io_context &io, WsClientConfig config,
-                    DnsServer &dns_server);
+  WsClient(asio::io_context &io, WsClientConfig config, Connector &connector);
+
   asio::awaitable<std::unique_ptr<Stream>> connect();
 
 private:
   ssl::context ssl_context_;
-  DnsServer dns_server_;
   WsClientConfig config_;
+  Connector &connector_;
 };
-}; // namespace sbox
+
+} // namespace sbox

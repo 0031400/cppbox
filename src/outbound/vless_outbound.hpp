@@ -8,8 +8,7 @@
 
 namespace sbox {
 struct VlessOutboundConfig {
-  std::string server;
-  std::uint16_t server_port = 0;
+  Destination server;
   VlessConfig vless;
   std::optional<TlsConfig> tls;
   std::optional<TransportConfig> transport;
@@ -17,7 +16,7 @@ struct VlessOutboundConfig {
 class VlessOutbound : public Outbound {
 public:
   explicit VlessOutbound(asio::io_context &io, VlessOutboundConfig config,
-                         DnsServer &dns_server);
+                         Connector &connector);
 
   asio::awaitable<void> handle(tcp::socket socket, Session session) override;
 
@@ -30,6 +29,6 @@ private:
   asio::io_context &io_;
   VlessOutboundConfig config_;
   VlessProtocol protocol_;
-  DnsServer dns_server_;
+  Connector &connector_;
 };
 }; // namespace sbox

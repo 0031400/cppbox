@@ -42,34 +42,35 @@ bool Router::ends_with(const std::string &text, const std::string &suffix) {
 bool Router::contains(const std::string &text, const std::string &keyword) {
   return text.find(keyword) != std::string::npos;
 }
-bool Router::is_ip(const Destination &dst) {
-  return dst.type == AddressType::IPv4 || dst.type == AddressType::IPv6;
-}
+bool Router::is_ip(const Destination &dst) { return dst.host.is_ip(); }
 bool Router::match_domain(const RouteRuleConfig &rule, const Destination &dst) {
-  if (dst.type != AddressType::Domain) {
+  if (!dst.host.is_domain()) {
     return false;
   }
+
+  const auto domain = dst.host.domain().value();
+
   for (const auto &item : rule.domain) {
-    if (dst.host == item) {
+    if (domain == item) {
       return true;
     }
   }
+
   for (const auto &item : rule.domain_suffix) {
     if (item.empty()) {
       continue;
     }
-    if (item[0] == '.') {
-      if (ends_with(dst.host, item)) {
+    if (item.front() == '.') {
+      if (ends_with(domain, item)) {
         return true;
       }
-    } else {
-      if (dst.host == item || ends_with(dst.host, "." + item)) {
-        return true;
-      }
+    } else if (domain == item || ends_with(domain, "." + item)) {
+      return true;
     }
   }
+
   for (const auto &item : rule.domain_keyword) {
-    if (contains(dst.host, item)) {
+    if (contains(domain, item)) {
       return true;
     }
   }
@@ -131,25 +132,20 @@ bool Router::match_ip_cidr(const RouteRuleConfig &rule,
     return false;
   }
   for (const auto &cidr : rule.ip_cidr) {
-    try {
-      if (dst.type == AddressType::IPv4) {
-        if (cidr.find(':') != std::string::npos) {
-          continue;
-        }
-        if (match_ipv4_cidr(dst.host, cidr)) {
-          return true;
-        }
+    const auto ip_text = dst.host.to_string();
+
+    if (dst.host.type() == HostType::IPv4) {
+      if (cidr.find(':') == std::string::npos &&
+          match_ipv4_cidr(ip_text, cidr)) {
+        return true;
       }
-      if (dst.type == AddressType::IPv6) {
-        if (cidr.find(':') == std::string::npos) {
-          continue;
-        }
-        if (match_ipv6_cidr(dst.host, cidr)) {
-          return true;
-        }
+    }
+
+    if (dst.host.type() == HostType::IPv6) {
+      if (cidr.find(':') != std::string::npos &&
+          match_ipv6_cidr(ip_text, cidr)) {
+        return true;
       }
-    } catch (const std::exception &e) {
-      log_error(e.what());
     }
   }
   return false;

@@ -33,13 +33,14 @@ asio::awaitable<void> MixedInbound::handle_client(tcp::socket socket) {
     std::array<unsigned char, 1> first{};
     co_await socket.async_receive(
         asio::buffer(first), tcp::socket::message_peek, asio::use_awaitable);
-    Session session;
+
     if (first[0] == 0x05) {
-      session = co_await socks5::read_session(socket);
+      auto session = co_await socks5::read_session(socket);
+      co_await handler_(std::move(socket), std::move(session));
     } else {
-      session = co_await http_proxy::read_session(socket);
+      auto session = co_await http_proxy::read_session(socket);
+      co_await handler_(std::move(socket), std::move(session));
     }
-    co_await handler_(std::move(socket), std::move(session));
   } catch (const std::exception &e) {
     log_error(std::string("[mixed] ") + e.what());
     close_socket(socket);
