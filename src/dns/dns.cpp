@@ -1,42 +1,45 @@
 #include "dns/dns.hpp"
 #include "dns/dns_message.hpp"
 #include "dns/transport.hpp"
-#include <boost/asio/connect.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <stdexcept>
-#include <string>
-#include <vector>
 
 namespace sbox {
 namespace asio = boost::asio;
 namespace ip = asio::ip;
-using tcp = ip::tcp;
 
 namespace {
 
-dns_one::Bytes query_dns(const DnsConfig &config, const std::string &name,
-                         dns_one::QueryType query_type) {
+asio::awaitable<dns_one::Bytes>
+query_dns(const DnsConfig &config, const std::string &name,
+          dns_one::QueryType query_type) {
   const auto &server = config.proxyServerNameserver.server;
   const auto &type = config.proxyServerNameserver.type;
   const auto port = config.proxyServerNameserver.server_port;
   const auto &bootstrap = config.defaultNameserver.server;
-  const auto query = dns_one::build_query(name, query_type);
+  const auto bootstrap_port = config.defaultNameserver.server_port;
+  auto query = dns_one::build_query(name, query_type);
 
   if (type == "udp") {
-    return dns_one::query_udp(query, server, port, bootstrap);
+    co_return co_await dns_one::async_query_udp(
+        std::move(query), server, port, bootstrap, bootstrap_port);
   }
   if (type == "tcp") {
-    return dns_one::query_tcp(query, server, port, bootstrap);
+    co_return co_await dns_one::async_query_tcp(
+        std::move(query), server, port, bootstrap, bootstrap_port);
   }
   if (type == "tls") {
-    return dns_one::query_tls(query, server, port, bootstrap);
+    co_return co_await dns_one::async_query_tls(
+        std::move(query), server, port, bootstrap, bootstrap_port);
   }
   if (type == "https") {
-    return dns_one::query_https(
-        query, "https://" + server + ":" + std::to_string(port) +
-                   config.proxyServerNameserver.path,
-        bootstrap);
+    co_return co_await dns_one::async_query_https(
+        std::move(query),
+        "https://" + server + ":" + std::to_string(port) +
+            config.proxyServerNameserver.path,
+        bootstrap, bootstrap_port);
   }
+
   throw std::runtime_error("unsupported DNS type: " + type);
 }
 
@@ -44,12 +47,14 @@ dns_one::Bytes query_dns(const DnsConfig &config, const std::string &name,
 
 DnsServer::DnsServer(const DnsConfig &config) : config_(config) {}
 
-std::vector<ip::address> DnsServer::resolve(const DomainName &domain) {
+asio::awaitable<std::vector<ip::address>>
+DnsServer::resolve(const DomainName &domain) {
   std::vector<ip::address> output;
+  std::exception_ptr last_error;
 
   for (const auto type : {dns_one::QueryType::A, dns_one::QueryType::AAAA}) {
     try {
-      const auto response = query_dns(config_, domain.value(), type);
+      const auto response = co_await query_dns(config_, domain.value(), type);
 
       for (const auto &record : dns_one::parse_response(response)) {
         if (record.type != dns_one::QueryType::A &&
@@ -58,41 +63,25 @@ std::vector<ip::address> DnsServer::resolve(const DomainName &domain) {
         }
 
         boost::system::error_code ec;
-        const auto address = ip::make_address(record.value, ec);
+        auto address = ip::make_address(record.value, ec);
         if (!ec) {
           output.push_back(address);
         }
       }
     } catch (...) {
-      if (output.empty() && type == dns_one::QueryType::AAAA) {
-        throw;
-      }
+      last_error = std::current_exception();
     }
   }
 
-  if (output.empty()) {
-    throw std::runtime_error("DNS returned no address for " + domain.value());
-  }
-  return output;
-}
-
-asio::awaitable<void>
-DnsServer::async_tcp_connect(tcp::socket &socket,
-                             const Destination &destination) {
-  std::vector<tcp::endpoint> endpoints;
-
-  if (destination.host.is_ip()) {
-    endpoints.emplace_back(destination.host.asio_address(), destination.port);
-  } else {
-    for (const auto &address : resolve(destination.host.domain())) {
-      endpoints.emplace_back(address, destination.port);
-    }
+  if (!output.empty()) {
+    co_return output;
   }
 
-  const auto results = tcp::resolver::results_type::create(
-      endpoints.begin(), endpoints.end(), "", "");
+  if (last_error) {
+    std::rethrow_exception(last_error);
+  }
 
-  co_await asio::async_connect(socket, results, asio::use_awaitable);
+  throw std::runtime_error("DNS returned no address for " + domain.value());
 }
 
 } // namespace sbox

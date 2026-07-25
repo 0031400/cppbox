@@ -113,31 +113,48 @@ udp::endpoint make_udp_endpoint(std::string_view ip, int port) {
 tcp::endpoint make_tcp_endpoint(std::string_view ip, int port) {
   return tcp::endpoint(parse_ip(ip), static_cast<unsigned short>(port));
 }
-Bytes query_udp_ip_only(std::span<const std::uint8_t> message,
-                        std::string_view server_ip, int port) {
-  asio::io_context io;
-  udp::socket socket(io);
-  const auto endpoint = make_udp_endpoint(server_ip, port);
+asio::awaitable<Bytes> query_udp_ip_only(Bytes message,
+                                         std::string_view server_ip, int port) {
+  auto executor = co_await asio::this_coro::executor;
+  udp::socket socket(executor);
+
+  const auto endpoint =
+      udp::endpoint(parse_ip(server_ip), static_cast<unsigned short>(port));
+
   socket.open(endpoint.protocol());
-  socket.send_to(asio::buffer(message), endpoint);
+  co_await socket.async_send_to(asio::buffer(message), endpoint,
+                                asio::use_awaitable);
+
   Bytes response(4096);
-  udp ::endpoint sender;
-  const auto size = socket.receive_from(asio::buffer(response), sender);
+  udp::endpoint sender;
+  const auto size = co_await socket.async_receive_from(
+      asio::buffer(response), sender, asio::use_awaitable);
+
   response.resize(size);
-  return response;
+  co_return response;
 }
-std::string resolve_host_with_dns(std::string_view host,
-                                  std::string_view bootstrap_server) {
+
+asio::awaitable<std::string>
+resolve_host_with_dns(std::string_view host, std::string_view bootstrap_server,
+                      int bootstrap_port) {
   if (is_ip_literal(host)) {
-    return std::string(host);
+    co_return std::string(host);
   }
-  const auto query = build_query(host, QueryType::A);
-  const auto response = query_udp_ip_only(query, bootstrap_server, 53);
-  const auto records = parse_response(response);
-  for (const auto &record : records) {
-    if (record.type == QueryType::A && !record.value.empty())
-      return record.value;
+
+  if (!is_ip_literal(bootstrap_server)) {
+    throw std::runtime_error("bootstrap DNS must be an IP address");
   }
+
+  auto query = build_query(host, QueryType::A);
+  auto response = co_await query_udp_ip_only(std::move(query), bootstrap_server,
+                                             bootstrap_port);
+
+  for (const auto &record : parse_response(response)) {
+    if (record.type == QueryType::A && !record.value.empty()) {
+      co_return record.value;
+    }
+  }
+
   throw std::runtime_error("failed to resolve host via bootstrap DNS: " +
                            std::string(host));
 }
@@ -174,109 +191,128 @@ void load_system_root_certificates(ssl::context &ctx) {
 }
 }; // namespace
 
-Protocol parse_protocol(std::string_view text) {
-  if (text == "udp") {
-    return Protocol::Udp;
-  }
-  if (text == "tcp") {
-    return Protocol::Tcp;
-  }
-  if (text == "tls" || text == "dot") {
-    return Protocol::Tls;
-  }
-  if (text == "https" || text == "doh") {
-    return Protocol::Https;
-  }
-  throw std::runtime_error("protocol must be udp, tcp, tls, or https");
-}
-Bytes query_udp(std::span<const std::uint8_t> message,
-                const std::string &server, int port,
-                std::string_view bootstrap_server) {
-  const auto server_ip = resolve_host_with_dns(server, bootstrap_server);
-  return query_udp_ip_only(message, server_ip, port);
+boost::asio::awaitable<Bytes>
+async_query_udp(Bytes message, const std::string &server, int port,
+                std::string_view bootstrap_server, int bootstrap_port) {
+  const auto server_ip =
+      co_await resolve_host_with_dns(server, bootstrap_server, bootstrap_port);
+  co_return co_await query_udp_ip_only(std::move(message), server_ip, port);
 }
 
-Bytes query_tcp(std::span<const std::uint8_t> message,
-                const std::string &server, int port,
-                std::string_view bootstrap_server) {
-  const auto server_ip = resolve_host_with_dns(server, bootstrap_server);
-  asio::io_context io;
-  tcp::socket socket(io);
-  socket.connect(make_tcp_endpoint(server_ip, port));
-  const auto framed = add_tcp_length(message);
-  asio::write(socket, asio::buffer(framed));
-  std::array<std::uint8_t, 2> length_bytes;
-  asio::read(socket, asio::buffer(length_bytes));
+boost::asio::awaitable<Bytes>
+async_query_tcp(Bytes message, const std::string &server, int port,
+                std::string_view bootstrap_server, int bootstrap_port) {
+  const auto server_ip =
+      co_await resolve_host_with_dns(server, bootstrap_server, bootstrap_port);
+
+  auto executor = co_await asio::this_coro::executor;
+  tcp::socket socket(executor);
+
+  co_await socket.async_connect(make_tcp_endpoint(server_ip, port),
+                                asio::use_awaitable);
+
+  auto framed = add_tcp_length(message);
+  co_await asio::async_write(socket, asio::buffer(framed), asio::use_awaitable);
+
+  std::array<std::uint8_t, 2> length_bytes{};
+  co_await asio::async_read(socket, asio::buffer(length_bytes),
+                            asio::use_awaitable);
+
   Bytes response(read_tcp_length(length_bytes));
-  asio::read(socket, asio::buffer(response));
-  return response;
+  co_await asio::async_read(socket, asio::buffer(response),
+                            asio::use_awaitable);
+
+  co_return response;
 }
-Bytes query_tls(std::span<const std::uint8_t> message,
-                const std::string &server, int port,
-                std::string_view bootstrap_server) {
-  asio::io_context io;
+boost::asio::awaitable<Bytes>
+async_query_tls(Bytes message, const std::string &server, int port,
+                std::string_view bootstrap_server, int bootstrap_port) {
+  const auto server_ip =
+      co_await resolve_host_with_dns(server, bootstrap_server, bootstrap_port);
+
+  auto executor = co_await asio::this_coro::executor;
+
   ssl::context ctx(ssl::context::tls_client);
   load_system_root_certificates(ctx);
-  ssl::stream<tcp::socket> stream(io, ctx);
+
+  ssl::stream<tcp::socket> stream(executor, ctx);
   stream.set_verify_mode(ssl::verify_peer);
   stream.set_verify_callback(ssl::host_name_verification(server));
+
   if (!SSL_set_tlsext_host_name(stream.native_handle(), server.c_str())) {
     throw beast::system_error(beast::error_code(
-        static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category())
-
-    );
+        static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category()));
   }
-  const auto server_ip = resolve_host_with_dns(server, bootstrap_server);
-  stream.next_layer().connect(make_tcp_endpoint(server_ip, port));
-  stream.handshake(ssl::stream_base::client);
-  const auto framed = add_tcp_length(message);
-  asio::write(stream, asio::buffer(framed));
-  std::array<std::uint8_t, 2> length_bytes;
-  asio::read(stream, asio::buffer(length_bytes));
+
+  co_await stream.next_layer().async_connect(make_tcp_endpoint(server_ip, port),
+                                             asio::use_awaitable);
+  co_await stream.async_handshake(ssl::stream_base::client,
+                                  asio::use_awaitable);
+
+  auto framed = add_tcp_length(message);
+  co_await asio::async_write(stream, asio::buffer(framed), asio::use_awaitable);
+
+  std::array<std::uint8_t, 2> length_bytes{};
+  co_await asio::async_read(stream, asio::buffer(length_bytes),
+                            asio::use_awaitable);
+
   Bytes response(read_tcp_length(length_bytes));
-  asio::read(stream, asio::buffer(response));
-  return response;
+  co_await asio::async_read(stream, asio::buffer(response),
+                            asio::use_awaitable);
+
+  co_return response;
 }
-Bytes query_https(std::span<const std::uint8_t> message,
-                  const std::string &doh_url,
-                  std::string_view bootstrap_server) {
+boost::asio::awaitable<Bytes>
+async_query_https(Bytes message, const std::string &doh_url,
+                  std::string_view bootstrap_server, int bootstrap_port) {
   const auto url = parse_https_url(doh_url);
-  asio::io_context io;
+  const auto server_ip = co_await resolve_host_with_dns(
+      url.host, bootstrap_server, bootstrap_port);
+
+  auto executor = co_await asio::this_coro::executor;
+
   ssl::context ctx(ssl::context::tls_client);
   load_system_root_certificates(ctx);
-  beast::ssl_stream<beast::tcp_stream> stream(io, ctx);
+
+  beast::ssl_stream<beast::tcp_stream> stream(executor, ctx);
   stream.set_verify_mode(ssl::verify_peer);
   stream.set_verify_callback(ssl::host_name_verification(url.host));
+
   if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host.c_str())) {
     throw beast::system_error(beast::error_code(
-        static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category())
-
-    );
+        static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category()));
   }
-  const auto server_ip = resolve_host_with_dns(url.host, bootstrap_server);
-  beast::get_lowest_layer(stream).connect(
-      make_tcp_endpoint(server_ip, std::stoi(url.port)));
-  stream.handshake(ssl::stream_base::client);
+
+  co_await beast::get_lowest_layer(stream).async_connect(
+      make_tcp_endpoint(server_ip, std::stoi(url.port)), asio::use_awaitable);
+
+  co_await stream.async_handshake(ssl::stream_base::client,
+                                  asio::use_awaitable);
+
   http::request<http::vector_body<std::uint8_t>> req{http::verb::post,
                                                      url.target, 11};
   req.set(http::field::host, url.host);
-  req.set(http::field::user_agent,
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-          "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36");
+  req.set(http::field::user_agent, "sbox-cpp/0.1");
   req.set(http::field::content_type, "application/dns-message");
   req.set(http::field::accept, "application/dns-message");
-  req.body().assign(message.begin(), message.end());
+  req.body() = std::move(message);
   req.prepare_payload();
-  http::write(stream, req);
+
+  co_await http::async_write(stream, req, asio::use_awaitable);
+
   beast::flat_buffer buffer;
   http::response<http::vector_body<std::uint8_t>> res;
-  http::read(stream, buffer, res);
-  beast::error_code ec;
-  ec = stream.shutdown(ec);
+  co_await http::async_read(stream, buffer, res, asio::use_awaitable);
+
+  boost::system::error_code ignored;
+  co_await stream.async_shutdown(
+      asio::redirect_error(asio::use_awaitable, ignored));
+
   if (res.result() != http::status::ok) {
     throw std::runtime_error("DoH server returned HTTP " +
                              std::to_string(res.result_int()));
   }
-  return std::move(res.body());
+
+  co_return std::move(res.body());
 }
 }; // namespace dns_one

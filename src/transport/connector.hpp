@@ -9,7 +9,7 @@ namespace sbox {
 
 class Connector {
 public:
-  explicit Connector(DnsServer &dns_server) : dns_server_(dns_server) {}
+  explicit Connector(DnsServer &dns_server);
 
   asio::awaitable<void> connect(tcp::socket &socket,
                                 const Destination &destination);
