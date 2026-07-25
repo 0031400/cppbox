@@ -10,6 +10,7 @@ add_executable(sbox
     src/common/json_common.cpp
     src/config/config.cpp
     src/core/log.cpp
+    src/core/shutdown.cpp
     src/dns/dns.cpp
     src/dns/dns_message.cpp
     src/dns/transport.cpp
