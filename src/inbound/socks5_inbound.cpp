@@ -1,6 +1,7 @@
 #include "inbound/socks5_inbound.hpp"
 #include "core/session.hpp"
 #include "core/utils.hpp"
+#include "inbound/listen.hpp"
 #include "protocol/socks5.hpp"
 #include <boost/asio.hpp>
 #include <boost/asio/awaitable.hpp>
@@ -14,11 +15,12 @@
 #include <exception>
 #include <functional>
 
+
 namespace sbox {
 
 Socks5Inbound::Socks5Inbound(asio::io_context &io, tcp::endpoint endpoint,
                              Handler handler)
-    : acceptor_(io, endpoint), handler_(std::move(handler)) {}
+    : acceptor_(make_acceptor(io, endpoint)), handler_(std::move(handler)) {}
 asio::awaitable<void> Socks5Inbound::start() {
   for (;;) {
     tcp::socket socket = co_await acceptor_.async_accept(asio::use_awaitable);

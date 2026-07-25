@@ -16,11 +16,11 @@
 #include <exception>
 #include <string>
 #include <utility>
-
+#include "inbound/listen.hpp"
 namespace sbox {
 MixedInbound::MixedInbound(asio::io_context &io, tcp::endpoint endpoint,
                            Handler handler)
-    : acceptor_(io, endpoint), handler_(std::move(handler)) {}
+    : acceptor_(make_acceptor(io, endpoint)), handler_(std::move(handler)) {}
 asio::awaitable<void> MixedInbound::start() {
   for (;;) {
     tcp::socket socket = co_await acceptor_.async_accept(asio::use_awaitable);
