@@ -14,16 +14,6 @@
 #include <boost/asio/ssl/stream_base.hpp>
 #include <boost/asio/ssl/verify_mode.hpp>
 #include <boost/beast.hpp>
-#include <boost/beast/core/error.hpp>
-#include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/core/stream_traits.hpp>
-#include <boost/beast/core/tcp_stream.hpp>
-#include <boost/beast/http/field.hpp>
-#include <boost/beast/http/impl/write.hpp>
-#include <boost/beast/http/message_fwd.hpp>
-#include <boost/beast/http/status.hpp>
-#include <boost/beast/http/vector_body.hpp>
-#include <boost/beast/http/verb.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/system/detail/error_code.hpp>
 #include <openssl/err.h>
