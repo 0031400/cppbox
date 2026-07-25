@@ -20,7 +20,6 @@ add_executable(sbox
     src/outbound/block_outbound.cpp
     src/outbound/direct_outbound.cpp
     src/outbound/vless_outbound.cpp
-    src/platform/windows_proxy.cpp
     src/protocol/vless.cpp
     src/protocol/socks5.cpp
     src/protocol/http_proxy.cpp
@@ -30,6 +29,11 @@ add_executable(sbox
     src/transport/tcp_client.cpp
     src/transport/connector.cpp
 )
+if(WIN32)
+    target_sources(sbox PRIVATE
+        src/platform/windows_proxy.cpp
+    )
+endif()
 target_include_directories(sbox PRIVATE src)
 target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
 if(WIN32)
