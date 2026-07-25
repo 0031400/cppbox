@@ -1,6 +1,7 @@
 #include "outbound/vless_outbound.hpp"
 #include "config/config.hpp"
 #include "core/log.hpp"
+#include "protocol/tls_sniffer.hpp"
 #include "transport/tcp_client.hpp"
 #include "transport/ws_client.hpp"
 #include <array>
@@ -56,13 +57,50 @@ asio::awaitable<std::unique_ptr<Stream>> VlessOutbound::connect_stream() {
   }
   throw std::runtime_error("unsupported vless transport");
 }
+asio::awaitable<std::vector<unsigned char>>
+VlessOutbound::read_initial_payload(tcp::socket &tcp_socket) {
+  std::array<unsigned char, 16 * 1024> buffer{};
+  error_code ec;
+
+  auto n = co_await tcp_socket.async_read_some(
+      asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
+
+  if (ec == asio::error::eof || ec == asio::error::connection_reset ||
+      ec == asio::error::operation_aborted) {
+    co_return std::vector<unsigned char>{};
+  }
+
+  if (ec) {
+    throw boost::system::system_error(ec);
+  }
+
+  co_return std::vector<unsigned char>(buffer.begin(), buffer.begin() + n);
+}
 asio::awaitable<void> VlessOutbound::handle(tcp::socket inbound,
                                             Session session) {
   std::unique_ptr<Stream> stream;
+
   try {
+    Destination destination = session.destination;
+
+    if (config_.override_address) {
+      if (session.initial_payload.empty()) {
+        session.initial_payload = co_await read_initial_payload(inbound);
+      }
+
+      if (!session.initial_payload.empty()) {
+        if (auto sni = sniff_tls_sni(session.initial_payload)) {
+          log_info("[vless] sni: " + destination.host.to_string() + " -> " +
+                   *sni);
+
+          destination.host = Host::domain(*sni);
+        }
+      }
+    }
+
     stream = co_await connect_stream();
 
-    auto request = protocol_.build_request(session.destination);
+    auto request = protocol_.build_request(destination);
     co_await stream->write(request);
 
     if (!session.initial_payload.empty()) {
@@ -78,20 +116,24 @@ asio::awaitable<void> VlessOutbound::handle(tcp::socket inbound,
   if (stream) {
     stream->close();
   }
+
   close_socket(inbound);
 }
 
 asio::awaitable<void>
 VlessOutbound::relay_tcp_to_stream(tcp::socket &tcp_socket, Stream &stream) {
   std::array<unsigned char, 16 * 1024> buffer{};
+
   for (;;) {
     error_code ec;
     auto n = co_await tcp_socket.async_read_some(
         asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
+
     if (ec == asio::error::eof || ec == asio::error::connection_reset ||
         ec == asio::error::operation_aborted) {
       co_return;
     }
+
     if (ec) {
       throw boost::system::system_error(ec);
     }
@@ -100,7 +142,6 @@ VlessOutbound::relay_tcp_to_stream(tcp::socket &tcp_socket, Stream &stream) {
     co_await stream.write(bytes);
   }
 }
-
 asio::awaitable<void>
 VlessOutbound::relay_stream_to_tcp(Stream &stream, tcp::socket &tcp_socket) {
   bool first_message = true;

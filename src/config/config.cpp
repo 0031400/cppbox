@@ -132,6 +132,9 @@ AppConfig load_config(const std::string &path) {
   defaultNameserver.server = get_string(defaultNameserver_obj, "server");
   config.dns.proxyServerNameserver = proxyServerNameserver;
   config.dns.defaultNameserver = defaultNameserver;
+  if (auto it = root.if_contains("override_address"); it && it->is_bool()) {
+    config.override_address = it->as_bool();
+  }
   return config;
 }
 }; // namespace sbox

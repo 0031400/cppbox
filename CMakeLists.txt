@@ -21,7 +21,9 @@ add_executable(sbox
     src/outbound/direct_outbound.cpp
     src/outbound/vless_outbound.cpp
     src/protocol/vless.cpp
+    src/protocol/vless.cpp
     src/protocol/socks5.cpp
+    src/protocol/tls_sniffer.cpp
     src/protocol/http_proxy.cpp
     src/route/router.cpp
     src/route/rule_set.cpp

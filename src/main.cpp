@@ -52,6 +52,7 @@ int main() {
                 .vless = sbox::VlessConfig{.uuid = item.uuid},
                 .tls = item.tls,
                 .transport = item.transport,
+                .override_address = config.override_address,
             },
             connector);
       } else if (item.type == "block") {

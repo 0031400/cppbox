@@ -72,6 +72,7 @@ struct AppConfig {
   RouteConfig route;
   WindowsProxyConfig windows_proxy;
   DnsConfig dns;
+  bool override_address = false;
 };
 AppConfig load_config(const std::string &path);
 }; // namespace sbox

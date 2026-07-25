@@ -12,6 +12,7 @@ struct VlessOutboundConfig {
   VlessConfig vless;
   std::optional<TlsConfig> tls;
   std::optional<TransportConfig> transport;
+  bool override_address = false;
 };
 class VlessOutbound : public Outbound {
 public:
@@ -30,5 +31,7 @@ private:
   VlessOutboundConfig config_;
   VlessProtocol protocol_;
   Connector &connector_;
+  asio::awaitable<std::vector<unsigned char>>
+  read_initial_payload(tcp::socket &tcp_socket);
 };
 }; // namespace sbox
