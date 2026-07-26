@@ -34,8 +34,19 @@ asio::awaitable<void> DirectOutbound::relay(tcp::socket &from,
                                             tcp::socket &to) {
   std::array<unsigned char, 16 * 1024> buffer{};
   for (;;) {
-    auto n = co_await from.async_read_some(asio::buffer(buffer),
-                                           asio::use_awaitable);
+    error_code ec;
+    auto n = co_await from.async_read_some(
+        asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
+
+    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
+        ec == asio::error::operation_aborted) {
+      co_return;
+    }
+
+    if (ec) {
+      throw boost::system::system_error(ec);
+    }
+
     co_await asio::async_write(to, asio::buffer(buffer.data(), n),
                                asio::use_awaitable);
   }
