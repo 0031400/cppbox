@@ -22,6 +22,7 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/address.hpp>
+#include <boost/asio/use_future.hpp>
 #include <exception>
 #include <iostream>
 #include <memory>
@@ -37,6 +38,7 @@ int main() {
     auto config = sbox::load_config("config.json");
     sbox::DnsServer dnsServer(config.dns);
     sbox::Connector connector(dnsServer);
+    dnsServer.set_connector(connector);
     sbox::Router router(config.route);
     std::unordered_map<std::string, std::shared_ptr<sbox::Outbound>> outbounds;
     std::shared_ptr<sbox::Inbound> tun_inbound;

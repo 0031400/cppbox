@@ -9,4 +9,5 @@ using tcp = asio::ip::tcp;
 using error_code = boost::system::error_code;
 namespace ssl = asio::ssl;
 namespace beast = boost::beast;
+using udp = asio::ip::udp;
 }; // namespace sbox
