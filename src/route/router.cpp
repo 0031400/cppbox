@@ -150,6 +150,11 @@ bool Router::match_ip_cidr(const RouteRuleConfig &rule,
   }
   return false;
 }
+bool Router::match_rule_set(std::string_view tag,
+                            const Destination &destination) const {
+  const auto it = rule_sets_.find(std::string(tag));
+  return it != rule_sets_.end() && it->second->match(destination);
+}
 bool Router::match_rule_conditions(const RouteRuleConfig &rule,
                                    const Destination &dst) {
   return match_domain(rule, dst) || match_ip_cidr(rule, dst);

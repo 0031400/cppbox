@@ -6,10 +6,11 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <charconv>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
-#include <sstream>
+
 namespace sbox {
 namespace {
 
@@ -118,9 +119,12 @@ asio::awaitable<void> DnsInbound::handle_request(Bytes request,
                                                  udp::endpoint client) {
   try {
     std::string domain = "<unknown>";
+    std::string dns_server_tag = "<unknown>";
 
     try {
-      domain = parse_question(request).name;
+      const auto question = parse_question(request);
+      domain = question.name;
+      dns_server_tag = dns_server_.pick_nameserver_tag(domain);
     } catch (const std::exception &e) {
       log_error(std::string("[dns] parse question failed: ") + e.what());
     }
@@ -131,7 +135,7 @@ asio::awaitable<void> DnsInbound::handle_request(Bytes request,
     co_await socket_.async_send_to(asio::buffer(response), client,
                                    asio::use_awaitable);
 
-    log_info("[dns] " + domain + " -> " + ips);
+    log_info("[dns] " + domain + " -> " + dns_server_tag + " -> " + ips);
   } catch (const std::exception &e) {
     if (!stopping_.load()) {
       log_error(std::string("[dns] query failed: ") + e.what());

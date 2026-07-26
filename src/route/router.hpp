@@ -15,6 +15,8 @@ public:
   std::string pick_outbound(const Session &session) const;
   static bool match_rule_conditions(const RouteRuleConfig &rule,
                                     const Destination &dst);
+  bool match_rule_set(std::string_view tag,
+                      const Destination &destination) const;
 
 private:
   static bool ends_with(const std::string &text, const std::string &suffix);

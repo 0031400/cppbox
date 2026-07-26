@@ -1,6 +1,6 @@
 #include "dns/dns.hpp"
-
 #include "core/tls.hpp"
+#include "route/router.hpp"
 #include "transport/connector.hpp"
 #include <array>
 #include <boost/asio/buffer.hpp>
@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+
 
 namespace sbox {
 namespace ip = asio::ip;
@@ -70,7 +71,8 @@ bool ends_with(std::string_view text, std::string_view suffix) {
 
 } // namespace
 
-DnsServer::DnsServer(const DnsConfig &config) : config_(config) {
+DnsServer::DnsServer(const DnsConfig &config, Router &router)
+    : config_(config), router_(router) {
   if (config_.servers.empty()) {
     throw std::runtime_error("dns.servers must not be empty");
   }
@@ -141,7 +143,7 @@ const DnsItemConfig &DnsServer::find_nameserver(std::string_view tag) const {
 }
 
 bool DnsServer::match_rule(const DnsRouteRuleConfig &rule,
-                           std::string_view domain) {
+                           std::string_view domain) const {
   for (const auto &item : rule.domain) {
     if (domain == normalize_domain(item)) {
       return true;
@@ -172,7 +174,16 @@ bool DnsServer::match_rule(const DnsRouteRuleConfig &rule,
       return true;
     }
   }
+  const Destination destination{
+      .host = Host::domain(std::string(domain)),
+      .port = 0,
+  };
 
+  for (const auto &tag : rule.rule_set) {
+    if (router_.match_rule_set(tag, destination)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -187,7 +198,9 @@ const DnsItemConfig &DnsServer::pick_nameserver(std::string_view domain) const {
 
   return find_nameserver(config_.final);
 }
-
+std::string DnsServer::pick_nameserver_tag(std::string_view domain) const {
+  return pick_nameserver(domain).tag;
+}
 asio::awaitable<Bytes> DnsServer::query(Bytes request) {
   if (!connector_) {
     throw std::runtime_error("DNS connector is not configured");

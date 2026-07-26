@@ -36,10 +36,10 @@ int main() {
     boost::asio::io_context io;
     sbox::Shutdown shutdown(io);
     auto config = sbox::load_config("config.json");
-    sbox::DnsServer dnsServer(config.dns);
+    sbox::Router router(config.route);
+    sbox::DnsServer dnsServer(config.dns, router);
     sbox::Connector connector(dnsServer);
     dnsServer.set_connector(connector);
-    sbox::Router router(config.route);
     std::unordered_map<std::string, std::shared_ptr<sbox::Outbound>> outbounds;
     std::shared_ptr<sbox::Inbound> tun_inbound;
 
