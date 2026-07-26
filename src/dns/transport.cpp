@@ -90,32 +90,29 @@ asio::ip::address parse_ip(std::string_view ip) {
   return address;
 }
 
-asio::awaitable<Bytes> query_udp_ip_only_raw(Bytes message,
+asio::awaitable<Bytes> query_udp_ip_only_raw(Connector &connector,
+                                             Bytes message,
                                              std::string_view server_ip,
                                              int port) {
   auto executor = co_await asio::this_coro::executor;
   udp::socket socket(executor);
+  co_await connector.connect(
+      socket, Destination{.host = Host::parse(std::string(server_ip)),
+                          .port = static_cast<std::uint16_t>(port)});
 
-  const auto endpoint =
-      udp::endpoint(parse_ip(server_ip), static_cast<unsigned short>(port));
-
-  socket.open(endpoint.protocol());
-  co_await socket.async_send_to(asio::buffer(message), endpoint,
-                                asio::use_awaitable);
+  co_await socket.async_send(asio::buffer(message), asio::use_awaitable);
 
   Bytes response(4096);
-  udp::endpoint sender;
-  const auto size = co_await socket.async_receive_from(
-      asio::buffer(response), sender, asio::use_awaitable);
+  const auto size = co_await socket.async_receive(asio::buffer(response),
+                                                  asio::use_awaitable);
 
   response.resize(size);
   co_return response;
 }
 
 asio::awaitable<std::string>
-resolve_host_with_bootstrap(std::string_view host,
-                            std::string_view bootstrap_server,
-                            int bootstrap_port) {
+resolve_dns_server_ip(Connector &connector, std::string_view host,
+                      std::string_view bootstrap_server, int bootstrap_port) {
   if (is_ip_literal(host)) {
     co_return std::string(host);
   }
@@ -125,9 +122,8 @@ resolve_host_with_bootstrap(std::string_view host,
   }
 
   auto query = build_query(host, QueryType::A);
-  auto response = co_await query_udp_ip_only_raw(std::move(query),
-                                                 bootstrap_server,
-                                                 bootstrap_port);
+  auto response = co_await query_udp_ip_only_raw(
+      connector, std::move(query), bootstrap_server, bootstrap_port);
 
   for (const auto &record : parse_response(response)) {
     if (record.type == QueryType::A && !record.value.empty()) {
@@ -139,22 +135,14 @@ resolve_host_with_bootstrap(std::string_view host,
                            std::string(host));
 }
 
-asio::awaitable<std::string>
-resolve_dns_server_ip(const std::string &server,
-                      std::string_view bootstrap_server,
-                      int bootstrap_port) {
-  co_return co_await resolve_host_with_bootstrap(server, bootstrap_server,
-                                                 bootstrap_port);
-}
-
 } // namespace
 
-asio::awaitable<Bytes>
-async_query_udp(Connector &connector, Bytes message, const std::string &server,
-                int port, std::string_view bootstrap_server,
-                int bootstrap_port) {
-  const auto server_ip =
-      co_await resolve_dns_server_ip(server, bootstrap_server, bootstrap_port);
+asio::awaitable<Bytes> async_query_udp(Connector &connector, Bytes message,
+                                       const std::string &server, int port,
+                                       std::string_view bootstrap_server,
+                                       int bootstrap_port) {
+  const auto server_ip = co_await resolve_dns_server_ip(
+      connector, server, bootstrap_server, bootstrap_port);
 
   auto executor = co_await asio::this_coro::executor;
   udp::socket socket(executor);
@@ -166,19 +154,19 @@ async_query_udp(Connector &connector, Bytes message, const std::string &server,
   co_await socket.async_send(asio::buffer(message), asio::use_awaitable);
 
   Bytes response(4096);
-  const auto size =
-      co_await socket.async_receive(asio::buffer(response), asio::use_awaitable);
+  const auto size = co_await socket.async_receive(asio::buffer(response),
+                                                  asio::use_awaitable);
 
   response.resize(size);
   co_return response;
 }
 
-asio::awaitable<Bytes>
-async_query_tcp(Connector &connector, Bytes message, const std::string &server,
-                int port, std::string_view bootstrap_server,
-                int bootstrap_port) {
-  const auto server_ip =
-      co_await resolve_dns_server_ip(server, bootstrap_server, bootstrap_port);
+asio::awaitable<Bytes> async_query_tcp(Connector &connector, Bytes message,
+                                       const std::string &server, int port,
+                                       std::string_view bootstrap_server,
+                                       int bootstrap_port) {
+  const auto server_ip = co_await resolve_dns_server_ip(
+      connector, server, bootstrap_server, bootstrap_port);
 
   auto executor = co_await asio::this_coro::executor;
   tcp::socket socket(executor);
@@ -201,12 +189,12 @@ async_query_tcp(Connector &connector, Bytes message, const std::string &server,
   co_return response;
 }
 
-asio::awaitable<Bytes>
-async_query_tls(Connector &connector, Bytes message, const std::string &server,
-                int port, std::string_view bootstrap_server,
-                int bootstrap_port) {
-  const auto server_ip =
-      co_await resolve_dns_server_ip(server, bootstrap_server, bootstrap_port);
+asio::awaitable<Bytes> async_query_tls(Connector &connector, Bytes message,
+                                       const std::string &server, int port,
+                                       std::string_view bootstrap_server,
+                                       int bootstrap_port) {
+  const auto server_ip = co_await resolve_dns_server_ip(
+      connector, server, bootstrap_server, bootstrap_port);
 
   auto executor = co_await asio::this_coro::executor;
 
@@ -238,13 +226,13 @@ async_query_tls(Connector &connector, Bytes message, const std::string &server,
   co_return response;
 }
 
-asio::awaitable<Bytes>
-async_query_https(Connector &connector, Bytes message,
-                  const std::string &doh_url,
-                  std::string_view bootstrap_server, int bootstrap_port) {
+asio::awaitable<Bytes> async_query_https(Connector &connector, Bytes message,
+                                         const std::string &doh_url,
+                                         std::string_view bootstrap_server,
+                                         int bootstrap_port) {
   const auto url = parse_https_url(doh_url);
   const auto server_ip = co_await resolve_dns_server_ip(
-      url.host, bootstrap_server, bootstrap_port);
+      connector, url.host, bootstrap_server, bootstrap_port);
 
   auto executor = co_await asio::this_coro::executor;
 
