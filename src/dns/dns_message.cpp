@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
-namespace dns_one {
+namespace sbox {
 namespace {
 std::uint16_t read_u16(std::span<const std::uint8_t> data, std::size_t offset) {
   if (offset + 2 > data.size()) {
@@ -178,4 +178,4 @@ std::vector<DnsRecord> parse_response(std::span<const std::uint8_t> packet) {
   }
   return records;
 }
-}; // namespace dns_one
+}; // namespace sbox

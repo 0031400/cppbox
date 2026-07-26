@@ -3,6 +3,7 @@
 #include "core/session.hpp"
 #include "core/shutdown.hpp"
 #include "dns/dns.hpp"
+#include "dns/dns_inbound.hpp"
 #include "inbound/http_inbound.hpp"
 #include "inbound/inbound.hpp"
 #include "inbound/mixed_inbound.hpp"
@@ -120,6 +121,13 @@ int main() {
                 << inbound_config.listen << ":" << inbound_config.listen_port
                 << "\n";
       inbounds[inbound_config.tag] = inbound;
+    }
+    if (config.dns.listen) {
+      auto dns_inbound =
+          std::make_shared<sbox::DnsInbound>(io, *config.dns.listen, dnsServer);
+
+      inbounds["dns"] = dns_inbound;
+      boost::asio::co_spawn(io, dns_inbound->start(), boost::asio::detached);
     }
     shutdown.on_stop([&inbounds] {
       for (const auto &[tag, inbound] : inbounds) {

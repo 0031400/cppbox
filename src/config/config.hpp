@@ -63,6 +63,7 @@ struct DnsItemConfig {
   std::string path;
 };
 struct DnsConfig {
+  std::optional<std::string> listen;
   DnsItemConfig proxyServerNameserver;
   DnsItemConfig defaultNameserver;
 };

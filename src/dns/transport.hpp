@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace dns_one {
+namespace sbox {
 
 boost::asio::awaitable<Bytes>
 async_query_udp(Bytes message, const std::string &server, int port = 53,
@@ -27,4 +27,4 @@ async_query_https(Bytes message, const std::string &doh_url,
                   std::string_view bootstrap_server = "119.29.29.29",
                   int bootstrap_port = 53);
 
-} // namespace dns_one
+} // namespace sbox

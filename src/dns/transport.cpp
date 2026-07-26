@@ -31,7 +31,7 @@
 
 #endif
 
-namespace dns_one {
+namespace sbox {
 namespace {
 namespace asio = boost::asio;
 namespace beast = boost::beast;
@@ -262,4 +262,4 @@ async_query_https(Bytes message, const std::string &doh_url,
 
   co_return std::move(res.body());
 }
-}; // namespace dns_one
+}; // namespace sbox

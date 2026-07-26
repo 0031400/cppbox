@@ -132,6 +132,13 @@ AppConfig load_config(const std::string &path) {
   defaultNameserver.server = get_string(defaultNameserver_obj, "server");
   config.dns.proxyServerNameserver = proxyServerNameserver;
   config.dns.defaultNameserver = defaultNameserver;
+  if (auto it = dns_obj.if_contains("listen"); it) {
+    if (!it->is_string()) {
+      throw std::runtime_error("dns.listen must be a string");
+    }
+    config.dns.listen = std::string(it->as_string().c_str());
+  }
+  //
   if (auto it = root.if_contains("override_address"); it && it->is_bool()) {
     config.override_address = it->as_bool();
   }
