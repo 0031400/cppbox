@@ -1,6 +1,7 @@
 #include "dns/dns_inbound.hpp"
 
 #include "core/log.hpp"
+#include "dns/dns_message.hpp"
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
@@ -8,12 +9,14 @@
 #include <stdexcept>
 #include <string_view>
 #include <utility>
-
+#include <sstream>
 namespace sbox {
 namespace {
 
 using udp = asio::ip::udp;
-
+std::string endpoint_text(const udp::endpoint &endpoint) {
+  return endpoint.address().to_string() + ":" + std::to_string(endpoint.port());
+}
 std::uint16_t parse_port(std::string_view text) {
   unsigned int value{};
   const auto [end, error] =
@@ -42,10 +45,8 @@ udp::endpoint parse_endpoint(std::string_view listen) {
     port = listen.substr(close + 2);
   } else {
     const auto colon = listen.rfind(':');
-    if (colon == std::string_view::npos ||
-        listen.find(':') != colon) {
-      throw std::runtime_error(
-          "dns.listen must be ipv4:port or [ipv6]:port");
+    if (colon == std::string_view::npos || listen.find(':') != colon) {
+      throw std::runtime_error("dns.listen must be ipv4:port or [ipv6]:port");
     }
 
     host = listen.substr(0, colon);
@@ -60,7 +61,25 @@ udp::endpoint parse_endpoint(std::string_view listen) {
 
   return udp::endpoint(address, parse_port(port));
 }
+std::string ip_list_text(const Bytes &response) {
+  std::ostringstream out;
+  bool first = true;
 
+  for (const auto &record : parse_response(response)) {
+    if (record.type != QueryType::A && record.type != QueryType::AAAA) {
+      continue;
+    }
+
+    if (!first) {
+      out << ", ";
+    }
+
+    out << record.value;
+    first = false;
+  }
+
+  return first ? "<empty>" : out.str();
+}
 } // namespace
 
 DnsInbound::DnsInbound(asio::io_context &io, std::string listen,
@@ -95,13 +114,24 @@ asio::awaitable<void> DnsInbound::start() {
   }
 }
 
-asio::awaitable<void>
-DnsInbound::handle_request(Bytes request, udp::endpoint client) {
+asio::awaitable<void> DnsInbound::handle_request(Bytes request,
+                                                 udp::endpoint client) {
   try {
+    std::string domain = "<unknown>";
+
+    try {
+      domain = parse_question(request).name;
+    } catch (const std::exception &e) {
+      log_error(std::string("[dns] parse question failed: ") + e.what());
+    }
+
     auto response = co_await dns_server_.query(std::move(request));
+    const auto ips = ip_list_text(response);
 
     co_await socket_.async_send_to(asio::buffer(response), client,
                                    asio::use_awaitable);
+
+    log_info("[dns] " + domain + " -> " + ips);
   } catch (const std::exception &e) {
     if (!stopping_.load()) {
       log_error(std::string("[dns] query failed: ") + e.what());

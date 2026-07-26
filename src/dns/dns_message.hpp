@@ -18,6 +18,12 @@ struct DnsRecord {
   std::string value;
   std::uint32_t ttl{};
 };
+struct DnsQuestion {
+  std::string name;
+  QueryType type{};
+};
+DnsQuestion parse_question(std::span<const std::uint8_t> packet);
+std::string query_type_name(QueryType type);
 QueryType parse_query_type(std::string_view text);
 Bytes build_query(std::string_view domain, QueryType type);
 std::vector<DnsRecord> parse_response(std::span<const std::uint8_t> packet);

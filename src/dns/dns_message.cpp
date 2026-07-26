@@ -109,7 +109,42 @@ QueryType parse_query_type(std::string_view text) {
   }
   throw std::runtime_error("query type must be A, AAAA, or CNAME");
 }
+std::string query_type_name(QueryType type) {
+  switch (type) {
+  case QueryType::A:
+    return "A";
+  case QueryType::AAAA:
+    return "AAAA";
+  case QueryType::CNAME:
+    return "CNAME";
+  }
 
+  return std::to_string(static_cast<std::uint16_t>(type));
+}
+
+DnsQuestion parse_question(std::span<const std::uint8_t> packet) {
+  if (packet.size() < 12) {
+    throw std::runtime_error("dns request too short");
+  }
+
+  const auto qdcount = read_u16(packet, 4);
+  if (qdcount == 0) {
+    throw std::runtime_error("dns request has no question");
+  }
+
+  std::size_t offset = 12;
+  auto name = read_name(packet, offset);
+
+  if (offset + 4 > packet.size()) {
+    throw std::runtime_error("truncated dns question");
+  }
+
+  const auto type_raw = read_u16(packet, offset);
+  return DnsQuestion{
+      .name = std::move(name),
+      .type = static_cast<QueryType>(type_raw),
+  };
+}
 Bytes build_query(std::string_view domain, QueryType type) {
   Bytes packet;
   push_u16(packet, 0x1234);
