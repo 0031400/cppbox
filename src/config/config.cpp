@@ -9,8 +9,10 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
+
 
 namespace sbox {
 
@@ -23,14 +25,16 @@ AppConfig load_config(const std::string &path) {
   auto root = json::parse(text).as_object();
   AppConfig config;
   // inbounds
-  for (const auto &item : root["inbounds"].as_array()) {
-    const auto &obj = item.as_object();
-    InboundConfig inbound_config;
-    inbound_config.type = get_string(obj, "type");
-    inbound_config.tag = get_string(obj, "tag");
-    inbound_config.listen = get_string(obj, "listen");
-    inbound_config.listen_port = get_u16(obj, "listen_port");
-    config.inbounds.push_back(std::move(inbound_config));
+  if (root.contains("inbounds") && root.at("inbounds").is_array()) {
+    for (const auto &item : root["inbounds"].as_array()) {
+      const auto &obj = item.as_object();
+      InboundConfig inbound_config;
+      inbound_config.type = get_string(obj, "type");
+      inbound_config.tag = get_string(obj, "tag");
+      inbound_config.listen = get_string(obj, "listen");
+      inbound_config.listen_port = get_u16(obj, "listen_port");
+      config.inbounds.push_back(std::move(inbound_config));
+    }
   }
   // outbounds
   for (auto &item : root["outbounds"].as_array()) {
@@ -110,35 +114,104 @@ AppConfig load_config(const std::string &path) {
     }
   }
   // dns
-  auto &dns_obj = root.at("dns").as_object();
-  auto &proxyServerNameserver_obj =
-      dns_obj.at("proxyServerNameserver").as_object();
-  auto &defaultNameserver_obj = dns_obj.at("defaultNameserver").as_object();
-  DnsItemConfig proxyServerNameserver;
-  DnsItemConfig defaultNameserver;
-  proxyServerNameserver.server =
-      get_string(proxyServerNameserver_obj, "server");
-  proxyServerNameserver.server_port =
-      get_u16(proxyServerNameserver_obj, "server_port");
-  proxyServerNameserver.type = get_string(proxyServerNameserver_obj, "type");
-  proxyServerNameserver.server =
-      get_string(proxyServerNameserver_obj, "server");
-  if (proxyServerNameserver.type == "https") {
-    proxyServerNameserver.path = get_string(proxyServerNameserver_obj, "path");
-  }
-  defaultNameserver.server = get_string(defaultNameserver_obj, "server");
-  defaultNameserver.server_port = get_u16(defaultNameserver_obj, "server_port");
-  defaultNameserver.type = get_string(defaultNameserver_obj, "type");
-  defaultNameserver.server = get_string(defaultNameserver_obj, "server");
-  config.dns.proxyServerNameserver = proxyServerNameserver;
-  config.dns.defaultNameserver = defaultNameserver;
+  const auto &dns_obj = root.at("dns").as_object();
+
   if (auto it = dns_obj.if_contains("listen"); it) {
     if (!it->is_string()) {
       throw std::runtime_error("dns.listen must be a string");
     }
     config.dns.listen = std::string(it->as_string().c_str());
   }
-  //
+
+  const auto &servers = dns_obj.at("servers").as_array();
+  if (servers.empty()) {
+    throw std::runtime_error("dns.servers must not be empty");
+  }
+
+  std::unordered_set<std::string> dns_server_tags;
+
+  for (const auto &item : servers) {
+    if (!item.is_object()) {
+      throw std::runtime_error("dns.servers item must be an object");
+    }
+
+    const auto &obj = item.as_object();
+    DnsItemConfig server;
+
+    server.tag = get_string(obj, "tag");
+    server.type = get_string(obj, "type");
+    server.server = get_string(obj, "server");
+    server.server_port = get_u16(obj, "server_port");
+
+    if (!dns_server_tags.insert(server.tag).second) {
+      throw std::runtime_error("duplicate DNS server tag: " + server.tag);
+    }
+
+    if (server.type != "udp" && server.type != "tcp" && server.type != "tls" &&
+        server.type != "https") {
+      throw std::runtime_error("unsupported DNS server type: " + server.type);
+    }
+
+    if (server.type == "https") {
+      server.path = get_string(obj, "path");
+      if (!server.path.starts_with('/')) {
+        throw std::runtime_error("DNS HTTPS path must start with /");
+      }
+    }
+
+    if (server.type == "tls" || server.type == "https") {
+      if (auto it = obj.if_contains("server_name"); it) {
+        if (!it->is_string()) {
+          throw std::runtime_error("dns server_name must be a string");
+        }
+        server.server_name = std::string(it->as_string().c_str());
+      }
+    }
+
+    config.dns.servers.push_back(std::move(server));
+  }
+
+  if (auto it = dns_obj.if_contains("rules"); it) {
+    if (!it->is_array()) {
+      throw std::runtime_error("dns.rules must be an array");
+    }
+
+    for (const auto &item : it->as_array()) {
+      if (!item.is_object()) {
+        throw std::runtime_error("dns.rules item must be an object");
+      }
+
+      const auto &obj = item.as_object();
+      DnsRouteRuleConfig rule;
+
+      rule.domain = get_string_array(obj, "domain");
+      rule.domain_suffix = get_string_array(obj, "domain_suffix");
+      rule.domain_keyword = get_string_array(obj, "domain_keyword");
+      rule.rule_set = get_string_array(obj, "rule_set");
+      rule.server = get_string(obj, "server");
+
+      if (rule.domain.empty() && rule.domain_suffix.empty() &&
+          rule.domain_keyword.empty() && rule.rule_set.empty()) {
+        throw std::runtime_error("dns rule must contain a match condition");
+      }
+
+      if (!dns_server_tags.contains(rule.server)) {
+        throw std::runtime_error("dns rule references unknown server: " +
+                                 rule.server);
+      }
+
+      config.dns.rules.push_back(std::move(rule));
+    }
+  }
+
+  config.dns.final = get_string(dns_obj, "final");
+
+  if (!dns_server_tags.contains(config.dns.final)) {
+    throw std::runtime_error("dns.final references unknown server: " +
+                             config.dns.final);
+  }
+
+  // override_address
   if (auto it = root.if_contains("override_address"); it && it->is_bool()) {
     config.override_address = it->as_bool();
   }

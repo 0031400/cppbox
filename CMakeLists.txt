@@ -15,7 +15,6 @@ add_executable(sbox
     src/dns/dns.cpp
     src/dns/dns_inbound.cpp
     src/dns/dns_message.cpp
-    src/dns/transport.cpp
     src/inbound/http_inbound.cpp
     src/inbound/mixed_inbound.cpp
     src/inbound/socks5_inbound.cpp

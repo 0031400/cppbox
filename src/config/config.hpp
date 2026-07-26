@@ -56,16 +56,28 @@ struct WindowsProxyConfig {
   std::string addr;
   std::uint16_t port;
 };
+
+struct DnsRouteRuleConfig {
+  std::vector<std::string> domain;
+  std::vector<std::string> domain_suffix;
+  std::vector<std::string> domain_keyword;
+  std::vector<std::string> rule_set;
+  std::string server;
+};
+
 struct DnsItemConfig {
+  std::string tag;
   std::string type;
   std::string server;
   std::uint16_t server_port;
   std::string path;
+  std::string server_name;
 };
 struct DnsConfig {
   std::optional<std::string> listen;
-  DnsItemConfig proxyServerNameserver;
-  DnsItemConfig defaultNameserver;
+  std::vector<DnsItemConfig> servers;
+  std::vector<DnsRouteRuleConfig> rules;
+  std::string final;
 };
 struct TunConfig {
   bool enable = false;
