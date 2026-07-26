@@ -161,6 +161,7 @@ asio::awaitable<void> TunInbound::handle_client(tcp::socket socket) {
   } catch (const std::exception &e) {
     log_error(std::string("[tun] handler failed: ") + e.what());
   }
+  nat_.erase(nat_port);
 }
 
 void TunInbound::packet_loop() {

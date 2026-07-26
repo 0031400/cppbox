@@ -11,6 +11,8 @@ namespace sbox {
 struct TunFlowKey {
   std::uint32_t src_ip{};
   std::uint16_t src_port{};
+  std::uint32_t dst_ip{};
+  std::uint16_t dst_port{};
 
   bool operator==(const TunFlowKey &) const = default;
 };
@@ -32,6 +34,7 @@ public:
                                  std::uint32_t dst_ip, std::uint16_t dst_port);
 
   std::optional<TunNatSession> lookup_back(std::uint16_t nat_port);
+  void erase(std::uint16_t nat_port);
 
 private:
   std::mutex mutex_;
