@@ -1,12 +1,16 @@
+#include <boost/stacktrace.hpp>
 #include <iostream>
 #include <source_location>
 #include <string_view>
+
 namespace sbox {
 void log_error(std::string_view messsage, const std::source_location location =
                                               std::source_location::current()) {
   std::cerr << "[error] " << location.file_name() << ":" << location.line()
             << " " << location.function_name() << " - " << messsage
             << std::endl;
+
+  std::cerr << boost::stacktrace::stacktrace();
 }
 void log_info(std::string_view messsage, const std::source_location location =
                                              std::source_location::current()) {
