@@ -11,6 +11,7 @@ add_executable(sbox
     src/config/config.cpp
     src/core/log.cpp
     src/core/shutdown.cpp
+    src/core/tls.cpp
     src/dns/dns.cpp
     src/dns/dns_message.cpp
     src/dns/transport.cpp
@@ -45,7 +46,7 @@ target_include_directories(sbox PRIVATE src)
 target_compile_definitions(
     sbox PRIVATE BOOST_ASIO_NO_DEPRECATED
 )
-target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json )
+target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
 if(WIN32)
     target_compile_definitions(sbox PRIVATE
         _WIN32_WINNT=0x0A00

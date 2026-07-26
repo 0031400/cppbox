@@ -25,6 +25,7 @@
 #include <string>
 #include <string_view>
 #ifdef _WIN32
+#include "core/tls.hpp"
 #include <wincrypt.h>
 #include <windows.h>
 
@@ -148,37 +149,7 @@ resolve_host_with_dns(std::string_view host, std::string_view bootstrap_server,
   throw std::runtime_error("failed to resolve host via bootstrap DNS: " +
                            std::string(host));
 }
-void load_system_root_certificates(ssl::context &ctx) {
-#ifdef _WIN32
-  HCERTSTORE cert_store = CertOpenSystemStore(0, "ROOT");
-  if (!cert_store) {
-    throw std::runtime_error("failed to open Windows ROOT certificate store");
-  }
-  X509_STORE *x509_store = SSL_CTX_get_cert_store(ctx.native_handle());
-  if (!x509_store) {
-    CertCloseStore(cert_store, 0);
-    throw std::runtime_error("failed to get OpenSSL certificate store");
-  }
-  PCCERT_CONTEXT cert_context = nullptr;
-  while ((cert_context = CertEnumCertificatesInStore(
-              cert_store, cert_context)) != nullptr) {
-    const unsigned char *encoded = cert_context->pbCertEncoded;
-    X509 *cert = d2i_X509(nullptr, &encoded, cert_context->cbCertEncoded);
-    if (!cert) {
-      continue;
-    }
-    if (X509_STORE_add_cert(x509_store, cert) != 1) {
-      const auto err = ERR_peek_last_error();
-      if (ERR_GET_REASON(err) == X509_R_CERT_ALREADY_IN_HASH_TABLE)
-        ERR_clear_error();
-    }
-    X509_free(cert);
-  }
-  CertCloseStore(cert_store, 0);
-#else
-  ctx.set_default_verify_paths();
-#endif
-}
+
 }; // namespace
 
 boost::asio::awaitable<Bytes>
@@ -223,16 +194,10 @@ async_query_tls(Bytes message, const std::string &server, int port,
   auto executor = co_await asio::this_coro::executor;
 
   ssl::context ctx(ssl::context::tls_client);
-  load_system_root_certificates(ctx);
+  sbox::tls::configure_client_context(ctx, false);
 
   ssl::stream<tcp::socket> stream(executor, ctx);
-  stream.set_verify_mode(ssl::verify_peer);
-  stream.set_verify_callback(ssl::host_name_verification(server));
-
-  if (!SSL_set_tlsext_host_name(stream.native_handle(), server.c_str())) {
-    throw beast::system_error(beast::error_code(
-        static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category()));
-  }
+  sbox::tls::configure_server_identity(stream, server, false);
 
   co_await stream.next_layer().async_connect(make_tcp_endpoint(server_ip, port),
                                              asio::use_awaitable);
@@ -262,17 +227,9 @@ async_query_https(Bytes message, const std::string &doh_url,
   auto executor = co_await asio::this_coro::executor;
 
   ssl::context ctx(ssl::context::tls_client);
-  load_system_root_certificates(ctx);
-
+  sbox::tls::configure_client_context(ctx, false);
   beast::ssl_stream<beast::tcp_stream> stream(executor, ctx);
-  stream.set_verify_mode(ssl::verify_peer);
-  stream.set_verify_callback(ssl::host_name_verification(url.host));
-
-  if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host.c_str())) {
-    throw beast::system_error(beast::error_code(
-        static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category()));
-  }
-
+  sbox::tls::configure_server_identity(stream, url.host, false);
   co_await beast::get_lowest_layer(stream).async_connect(
       make_tcp_endpoint(server_ip, std::stoi(url.port)), asio::use_awaitable);
 

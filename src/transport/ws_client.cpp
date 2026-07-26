@@ -1,4 +1,5 @@
 #include "transport/ws_client.hpp"
+#include "core/tls.hpp"
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/ssl/host_name_verification.hpp>
@@ -69,9 +70,9 @@ public:
   void close() override {
     error_code ignored;
     auto &socket = beast::get_lowest_layer(ws_);
-     socket.cancel(ignored);
-     socket.shutdown(tcp::socket::shutdown_both, ignored);
-     socket.close(ignored);
+    socket.cancel(ignored);
+    socket.shutdown(tcp::socket::shutdown_both, ignored);
+    socket.close(ignored);
   }
 
 private:
@@ -127,9 +128,9 @@ public:
   void close() override {
     error_code ignored;
     auto &socket = beast::get_lowest_layer(ws_);
-     socket.cancel(ignored);
-     socket.shutdown(tcp::socket::shutdown_both, ignored);
-     socket.close(ignored);
+    socket.cancel(ignored);
+    socket.shutdown(tcp::socket::shutdown_both, ignored);
+    socket.close(ignored);
   }
 
 private:
@@ -150,14 +151,7 @@ WsClient::WsClient(asio::io_context &io, WsClientConfig config,
     if (config_.tls.server_name.empty()) {
       config_.tls.server_name = config_.server.host.to_string();
     }
-
-    ssl_context_.set_default_verify_paths();
-
-    if (config_.tls.insecure) {
-      ssl_context_.set_verify_mode(ssl::verify_none);
-    } else {
-      ssl_context_.set_verify_mode(ssl::verify_peer);
-    }
+    tls::configure_client_context(ssl_context_, config_.tls.insecure);
   }
 }
 
@@ -183,18 +177,8 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
 
   co_await connector_.connect(beast::get_lowest_layer(ws), config_.server);
 
-  if (!SSL_set_tlsext_host_name(ws.next_layer().native_handle(),
-                                config_.tls.server_name.c_str())) {
-    throw beast::system_error(error_code(static_cast<int>(::ERR_get_error()),
-                                         asio::error::get_ssl_category()),
-                              "set tls sni");
-  }
-
-  if (!config_.tls.insecure) {
-    ws.next_layer().set_verify_callback(
-        ssl::host_name_verification(config_.tls.server_name));
-  }
-
+  tls::configure_server_identity(ws.next_layer(), config_.tls.server_name,
+                                 config_.tls.insecure);
   co_await ws.next_layer().async_handshake(ssl::stream_base::client,
                                            asio::use_awaitable);
 
