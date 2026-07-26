@@ -120,20 +120,45 @@ bool delete_default_route(const NET_LUID &luid, const std::string &tun_next_ip) 
 
   return true;
 }
-std::optional<std::uint32_t>
-find_best_interface_index_for_ipv4(const std::string &destination) {
-  sockaddr_in dst{};
-  dst.sin_family = AF_INET;
-  dst.sin_addr.s_addr = ipv4_to_net_order_u32(destination);
-
-  DWORD index = 0;
-  DWORD error = GetBestInterfaceEx(reinterpret_cast<sockaddr *>(&dst), &index);
+std::optional<std::uint32_t> find_default_route_interface_index() {
+  PMIB_IPFORWARD_TABLE2 table = nullptr;
+  const DWORD error = GetIpForwardTable2(AF_INET, &table);
   if (error != NO_ERROR) {
-    log_win32_error("GetBestInterfaceEx", error);
+    log_win32_error("GetIpForwardTable2", error);
     return std::nullopt;
   }
 
-  return index;
+  std::optional<std::uint32_t> best_index;
+  std::optional<std::uint64_t> best_metric;
+
+  for (ULONG i = 0; i < table->NumEntries; ++i) {
+    const auto &route = table->Table[i];
+
+    if (route.DestinationPrefix.PrefixLength != 0 ||
+        route.DestinationPrefix.Prefix.Ipv4.sin_addr.s_addr != INADDR_ANY) {
+      continue;
+    }
+
+    MIB_IPINTERFACE_ROW interface_row{};
+    InitializeIpInterfaceEntry(&interface_row);
+    interface_row.Family = AF_INET;
+    interface_row.InterfaceLuid = route.InterfaceLuid;
+
+    if (GetIpInterfaceEntry(&interface_row) != NO_ERROR) {
+      continue;
+    }
+
+    const std::uint64_t effective_metric =
+        static_cast<std::uint64_t>(route.Metric) + interface_row.Metric;
+
+    if (!best_metric || effective_metric < *best_metric) {
+      best_metric = effective_metric;
+      best_index = route.InterfaceIndex;
+    }
+  }
+
+  FreeMibTable(table);
+  return best_index;
 }
 bool configure_tun_routes(const NET_LUID &luid, const std::string &tun_ip,
                           const std::string &tun_next_ip) {

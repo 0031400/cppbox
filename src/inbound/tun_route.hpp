@@ -18,9 +18,7 @@ bool configure_tun_routes(const NET_LUID &luid, const std::string &tun_ip,
                           const std::string &tun_next_ip);
 bool cleanup_tun_routes(const NET_LUID &luid, const std::string &tun_ip,
                         const std::string &tun_next_ip);
-
-std::optional<std::uint32_t>
-find_best_interface_index_for_ipv4(const std::string &destination);
+std::optional<std::uint32_t> find_default_route_interface_index();
 #endif
 
 } // namespace sbox

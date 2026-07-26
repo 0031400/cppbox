@@ -81,7 +81,7 @@ int main() {
       }
     };
     if (config.tun.enable) {
-      auto outbound_index = sbox::find_best_interface_index_for_ipv4("8.8.8.8");
+      auto outbound_index = sbox::find_default_route_interface_index();
       if (!outbound_index) {
         throw std::runtime_error("failed to find outbound interface for tun");
       }
