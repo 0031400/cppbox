@@ -121,6 +121,13 @@ int main() {
                 << "\n";
       inbounds[inbound_config.tag] = inbound;
     }
+    shutdown.on_stop([&inbounds] {
+      for (const auto &[tag, inbound] : inbounds) {
+        sbox::log_info("stopping inbound: " + tag);
+        inbound->stop();
+      }
+    });
+    // windows proxy
 #ifdef _WIN32
     if (config.windows_proxy.enabled) {
       sbox::setWindowsProxy(config.windows_proxy.addr,

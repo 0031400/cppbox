@@ -81,7 +81,7 @@ asio::awaitable<void> TunInbound::start() {
   if (!configure_tun_routes(luid_, config_.tun_ip, config_.tun_next_ip)) {
     throw std::runtime_error("failed to configure tun routes");
   }
-
+  routes_configured_ = true;
   boost::system::error_code ec;
   tcp::endpoint endpoint(address_from_net_u32(tun_ip_), 0);
 
@@ -255,7 +255,7 @@ bool TunInbound::process_tcp_packet(std::uint8_t *packet, std::uint32_t size) {
   return true;
 }
 
-void TunInbound::stop() {
+void TunInbound::stop() noexcept {
   if (stopping_.exchange(true)) {
     return;
   }

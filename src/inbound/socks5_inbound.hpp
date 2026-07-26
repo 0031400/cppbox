@@ -11,7 +11,7 @@ public:
   using Handler = std::function<asio::awaitable<void>(tcp::socket, Session)>;
   Socks5Inbound(asio::io_context &io, tcp::endpoint endpoint, Handler handler);
   asio::awaitable<void> start() override;
-
+  void stop() noexcept override;
 private:
   asio::awaitable<void> handle_client(tcp::socket socket);
   tcp::acceptor acceptor_;

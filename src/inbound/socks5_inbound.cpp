@@ -15,7 +15,6 @@
 #include <exception>
 #include <functional>
 
-
 namespace sbox {
 
 Socks5Inbound::Socks5Inbound(asio::io_context &io, tcp::endpoint endpoint,
@@ -44,5 +43,11 @@ asio::awaitable<void> write_success_reply(tcp::socket &socket) {
       "Proxy-Agent: sbox-cpp/0.1\r\n"
       "\r\n";
   co_await asio::async_write(socket, asio::buffer(reply), asio::use_awaitable);
+}
+
+void Socks5Inbound::stop() noexcept {
+  error_code ignored;
+  acceptor_.cancel(ignored);
+  acceptor_.close(ignored);
 }
 }; // namespace sbox

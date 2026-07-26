@@ -1,6 +1,7 @@
 #include "inbound/http_inbound.hpp"
 #include "core/log.hpp"
 #include "core/utils.hpp"
+#include "inbound/listen.hpp"
 #include "protocol/http_proxy.hpp"
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -8,7 +9,7 @@
 #include <exception>
 #include <string>
 #include <utility>
-#include "inbound/listen.hpp"
+
 
 namespace sbox {
 
@@ -30,5 +31,10 @@ asio::awaitable<void> HttpInbound::handle_client(tcp::socket socket) {
     log_error(std::string("[http] ") + e.what());
     close_socket(socket);
   }
+}
+void HttpInbound::stop() noexcept {
+  error_code ignored;
+  acceptor_.cancel(ignored);
+  acceptor_.close(ignored);
 }
 } // namespace sbox

@@ -29,7 +29,7 @@ public:
 
   TunInbound(const TunInbound &) = delete;
   TunInbound &operator=(const TunInbound &) = delete;
-
+  void stop() noexcept override;
   asio::awaitable<void> start() override;
 
 private:
@@ -38,7 +38,6 @@ private:
 
   void packet_loop();
   bool process_tcp_packet(std::uint8_t *packet, std::uint32_t size);
-  void stop();
 
   asio::io_context &io_;
   TunInboundConfig config_;

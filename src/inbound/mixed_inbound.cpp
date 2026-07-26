@@ -46,4 +46,9 @@ asio::awaitable<void> MixedInbound::handle_client(tcp::socket socket) {
     close_socket(socket);
   }
 }
+void MixedInbound::stop() noexcept {
+  error_code ignored;
+  acceptor_.cancel(ignored);
+  acceptor_.close(ignored);
+}
 }; // namespace sbox
