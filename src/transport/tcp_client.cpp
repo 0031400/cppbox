@@ -37,7 +37,7 @@ TcpClient::TcpClient(asio::io_context &io, TcpClientConfig config,
       config_.tls.server_name = config_.server.host.to_string();
     }
 
-    tls::configure_client_context(ssl_context_, config_.tls.insecure);
+    tls::configure_tls_context(ssl_context_, config_.tls.insecure);
   }
 }
 
@@ -52,7 +52,7 @@ asio::awaitable<std::unique_ptr<Stream>> TcpClient::connect() {
   beast::ssl_stream<tcp::socket> stream(co_await asio::this_coro::executor,
                                         ssl_context_);
   co_await connector_.connect(beast::get_lowest_layer(stream), config_.server);
-  tls::configure_server_identity(stream, config_.tls.server_name,
+  tls::configure_tls_stream_identity(stream, config_.tls.server_name,
                                  config_.tls.insecure);
 
   co_await stream.async_handshake(ssl::stream_base::client,

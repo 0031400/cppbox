@@ -280,10 +280,10 @@ DnsServer::async_query_tls(const DnsItemConfig &nameserver, Bytes message) {
   auto executor = co_await asio::this_coro::executor;
 
   ssl::context ctx(ssl::context::tls_client);
-  tls::configure_client_context(ctx, false);
+  tls::configure_tls_context(ctx, false);
 
   ssl::stream<tcp::socket> stream(executor, ctx);
-  tls::configure_server_identity(stream, nameserver.server_name, false);
+  tls::configure_tls_stream_identity(stream, nameserver.server_name, false);
 
   co_await connector_->connect(
       stream.next_layer(), Destination{.host = Host::parse(nameserver.server),
@@ -311,10 +311,10 @@ DnsServer::async_query_https(const DnsItemConfig &nameserver, Bytes message) {
   auto executor = co_await asio::this_coro::executor;
 
   ssl::context ctx(ssl::context::tls_client);
-  tls::configure_client_context(ctx, false);
+  tls::configure_tls_context(ctx, false);
 
   beast::ssl_stream<beast::tcp_stream> stream(executor, ctx);
-  tls::configure_server_identity(stream, nameserver.server_name, false);
+  tls::configure_tls_stream_identity(stream, nameserver.server_name, false);
 
   co_await connector_->connect(
       beast::get_lowest_layer(stream).socket(),

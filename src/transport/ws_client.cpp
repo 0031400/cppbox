@@ -37,7 +37,7 @@ WsClient::WsClient(asio::io_context &io, WsClientConfig config,
     if (config_.tls.server_name.empty()) {
       config_.tls.server_name = config_.server.host.to_string();
     }
-    tls::configure_client_context(ssl_context_, config_.tls.insecure);
+    tls::configure_tls_context(ssl_context_, config_.tls.insecure);
   }
 }
 
@@ -62,7 +62,7 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
 
   co_await connector_.connect(beast::get_lowest_layer(ws), config_.server);
 
-  tls::configure_server_identity(ws.next_layer(), config_.tls.server_name,
+  tls::configure_tls_stream_identity(ws.next_layer(), config_.tls.server_name,
                                  config_.tls.insecure);
   co_await ws.next_layer().async_handshake(ssl::stream_base::client,
                                            asio::use_awaitable);

@@ -11,10 +11,10 @@
 
 namespace sbox::tls {
 
-void configure_client_context(ssl::context &context, bool insecure);
+void configure_tls_context(ssl::context &context, bool insecure);
 
 template <typename SslStream>
-void configure_server_identity(SslStream &stream, std::string_view server_name,
+void configure_tls_stream_identity(SslStream &stream, std::string_view server_name,
                                bool insecure) {
   const std::string name(server_name);
 

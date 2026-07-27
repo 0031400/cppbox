@@ -70,7 +70,7 @@ void load_system_root_certificates(ssl::context &context) {
 
 } // namespace
 
-void configure_client_context(ssl::context &context, bool insecure) {
+void configure_tls_context(ssl::context &context, bool insecure) {
   load_system_root_certificates(context);
   context.set_verify_mode(insecure ? ssl::verify_none : ssl::verify_peer);
 }
