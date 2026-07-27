@@ -17,7 +17,7 @@
 #include <string>
 #include <utility>
 #include "inbound/listen.hpp"
-namespace sbox {
+namespace cppbox {
 MixedInbound::MixedInbound(asio::io_context &io, tcp::endpoint endpoint,
                            Handler handler)
     : acceptor_(make_acceptor(io, endpoint)), handler_(std::move(handler)) {}
@@ -51,4 +51,4 @@ void MixedInbound::stop() noexcept {
   acceptor_.cancel(ignored);
   acceptor_.close(ignored);
 }
-}; // namespace sbox
+}; // namespace cppbox

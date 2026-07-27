@@ -16,7 +16,7 @@
 #include <utility>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 using asio::experimental::awaitable_operators::operator||;
 namespace {
 TlsConfig normalize_tls(const std::optional<TlsConfig> &tls,
@@ -167,4 +167,4 @@ VlessOutbound::relay_stream_to_tcp(Stream &stream, tcp::socket &tcp_socket) {
     }
   }
 }
-} // namespace sbox
+} // namespace cppbox

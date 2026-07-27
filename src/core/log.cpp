@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace sbox {
+namespace cppbox {
 void log_error(std::string_view messsage, const std::source_location location =
                                               std::source_location::current()) {
   std::cerr << "[error] " << location.file_name() << ":" << location.line()
@@ -13,7 +13,7 @@ void log_error(std::string_view messsage, const std::source_location location =
 
   for (const auto &frame : boost::stacktrace::stacktrace()) {
     const auto source_file = frame.source_file();
-    if (!source_file.contains("sbox")) {
+    if (!source_file.contains("cppbox")) {
       continue;
     }
     std::cerr << "  at " << source_file << ":" << frame.source_line() << " "
@@ -24,4 +24,4 @@ void log_info(std::string_view messsage, const std::source_location location =
                                              std::source_location::current()) {
   std::cout << "[info] " << messsage << std::endl;
 }
-} // namespace sbox
+} // namespace cppbox

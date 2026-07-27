@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <wininet.h>
 
-namespace sbox {
+namespace cppbox {
 constexpr const wchar_t *kInternetSettingsKey =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings";
 bool setDwordValue(HKEY key, const wchar_t *name, DWORD value) {
@@ -51,4 +51,4 @@ bool unsetWindowsProxy() {
   return ok;
 }
 
-}; // namespace sbox
+}; // namespace cppbox

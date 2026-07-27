@@ -1,7 +1,7 @@
 #include "protocol/vless.hpp"
 #include "core/utils.hpp"
 
-namespace sbox {
+namespace cppbox {
 
 VlessProtocol::VlessProtocol(VlessConfig config) : config_(std::move(config)) {}
 
@@ -48,4 +48,4 @@ void VlessProtocol::strip_response_header(std::vector<unsigned char> &bytes) {
               bytes.begin() + static_cast<std::ptrdiff_t>(header_len));
 }
 
-} // namespace sbox
+} // namespace cppbox

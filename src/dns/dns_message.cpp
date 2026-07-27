@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 std::string read_name(std::span<const std::uint8_t> data, std::size_t &offset,
@@ -197,4 +197,4 @@ std::vector<DnsRecord> parse_response(std::span<const std::uint8_t> packet) {
   }
   return records;
 }
-}; // namespace sbox
+}; // namespace cppbox

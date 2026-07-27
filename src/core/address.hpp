@@ -5,7 +5,7 @@
 #include <string>
 #include <variant>
 
-namespace sbox {
+namespace cppbox {
 
 enum class HostType {
   IPv4,
@@ -100,4 +100,4 @@ struct ResolvedEndpoint {
   tcp::endpoint tcp_endpoint() const;
 };
 
-} // namespace sbox
+} // namespace cppbox

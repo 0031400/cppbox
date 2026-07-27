@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-namespace sbox {
+namespace cppbox {
 bool setWindowsProxy(const std::string &host, uint16_t port);
 bool unsetWindowsProxy();
-}; // namespace sbox
+}; // namespace cppbox

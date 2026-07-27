@@ -3,7 +3,7 @@
 #include "dns/dns.hpp"
 #include "outbound/outbound.hpp"
 #include "transport/connector.hpp"
-namespace sbox {
+namespace cppbox {
 
 class DirectOutbound : public Outbound {
 public:
@@ -17,4 +17,4 @@ private:
   Connector &connector_;
 };
 
-} // namespace sbox
+} // namespace cppbox

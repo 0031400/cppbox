@@ -1,7 +1,7 @@
 #include "outbound/block_outbound.hpp"
 #include "core/utils.hpp"
 
-namespace sbox {
+namespace cppbox {
 
 asio::awaitable<void> BlockOutbound::handle(tcp::socket socket,
                                             Session session) {
@@ -9,4 +9,4 @@ asio::awaitable<void> BlockOutbound::handle(tcp::socket socket,
   co_return;
 }
 
-} // namespace sbox
+} // namespace cppbox

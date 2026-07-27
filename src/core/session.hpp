@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 
 struct Session {
   Destination destination;
   std::vector<unsigned char> initial_payload;
 };
-}; // namespace sbox
+}; // namespace cppbox

@@ -1,5 +1,5 @@
 #include "core/address.hpp"
-namespace sbox {
+namespace cppbox {
 bool is_ip_literal(std::string_view text) {
   error_code ec;
   ip::make_address(text, ec);
@@ -137,4 +137,4 @@ std::string Destination::to_string() const {
 tcp::endpoint ResolvedEndpoint::tcp_endpoint() const {
   return tcp::endpoint(address, port);
 }
-} // namespace sbox
+} // namespace cppbox

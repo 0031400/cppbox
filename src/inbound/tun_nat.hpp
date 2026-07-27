@@ -6,7 +6,7 @@
 #include <optional>
 #include <unordered_map>
 
-namespace sbox {
+namespace cppbox {
 
 struct TunFlowKey {
   std::uint32_t src_ip{};
@@ -44,4 +44,4 @@ private:
   std::unordered_map<std::uint16_t, TunNatSession> reverse_;
 };
 
-} // namespace sbox
+} // namespace cppbox

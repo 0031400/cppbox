@@ -11,7 +11,7 @@
 #include <string_view>
 #include <utility>
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 std::string endpoint_text(const udp::endpoint &endpoint) {
@@ -152,4 +152,4 @@ void DnsInbound::stop() noexcept {
   socket_.close(ignored);
 }
 
-} // namespace sbox
+} // namespace cppbox

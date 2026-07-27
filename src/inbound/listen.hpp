@@ -2,9 +2,9 @@
 
 #include "core/net.hpp"
 
-namespace sbox {
+namespace cppbox {
 
 tcp::acceptor make_acceptor(asio::io_context &io,
                             const tcp::endpoint &endpoint);
 
-} // namespace sbox
+} // namespace cppbox

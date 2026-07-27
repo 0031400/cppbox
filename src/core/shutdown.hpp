@@ -7,7 +7,7 @@
 #include <mutex>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 
 class Shutdown {
 public:
@@ -28,4 +28,4 @@ private:
   std::vector<std::function<void()>> callbacks_;
 };
 
-} // namespace sbox
+} // namespace cppbox

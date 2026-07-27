@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-namespace sbox {
+namespace cppbox {
 namespace json = boost::json;
 struct InboundConfig {
   std::string type;
@@ -94,4 +94,4 @@ struct AppConfig {
   TunConfig tun;
 };
 AppConfig load_config(const std::string &path);
-}; // namespace sbox
+}; // namespace cppbox

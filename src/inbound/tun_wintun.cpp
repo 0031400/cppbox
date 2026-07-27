@@ -6,7 +6,7 @@
 #include <cstring>
 #include <string>
 
-namespace sbox {
+namespace cppbox {
 
 WintunApi::~WintunApi() {
   if (session_) {
@@ -118,4 +118,4 @@ bool WintunApi::adapter_luid(NET_LUID &luid) const {
   return true;
 }
 
-} // namespace sbox
+} // namespace cppbox

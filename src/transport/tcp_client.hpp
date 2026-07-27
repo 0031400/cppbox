@@ -10,7 +10,7 @@
 #include <boost/asio/ssl/context.hpp>
 #include <memory>
 
-namespace sbox {
+namespace cppbox {
 
 struct TcpClientConfig {
   Destination server;
@@ -29,4 +29,4 @@ private:
   TcpClientConfig config_;
 };
 
-} // namespace sbox
+} // namespace cppbox

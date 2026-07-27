@@ -13,7 +13,7 @@
 
 #include "inbound/wintun.h"
 
-namespace sbox {
+namespace cppbox {
 
 struct TunPacket {
   std::uint8_t *data{};
@@ -57,6 +57,6 @@ private:
   WINTUN_GET_ADAPTER_LUID_FUNC *get_adapter_luid_{};
 };
 
-} // namespace sbox
+} // namespace cppbox
 
 #endif

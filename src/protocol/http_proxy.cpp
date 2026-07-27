@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-namespace sbox::http_proxy {
+namespace cppbox::http_proxy {
 namespace {
 
 std::uint16_t parse_port(std::string_view text) {
@@ -201,11 +201,11 @@ asio::awaitable<Session> read_session(tcp::socket &socket) {
 asio::awaitable<void> write_success_reply(tcp::socket &socket) {
   static constexpr std::string_view reply =
       "HTTP/1.1 200 Connection Established\r\n"
-      "Proxy-Agent: sbox-cpp/0.1\r\n"
+      "Proxy-Agent: cppbox-cpp/0.1\r\n"
       "\r\n";
 
   co_await asio::async_write(socket, asio::buffer(reply),
                              asio::use_awaitable);
 }
 
-} // namespace sbox::http_proxy
+} // namespace cppbox::http_proxy

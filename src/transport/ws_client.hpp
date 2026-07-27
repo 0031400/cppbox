@@ -14,7 +14,7 @@
 #include <boost/beast/websocket.hpp>
 #include <memory>
 #include <string>
-namespace sbox {
+namespace cppbox {
 
 struct WsClientConfig {
   Destination server;
@@ -35,4 +35,4 @@ private:
   Connector &connector_;
 };
 
-} // namespace sbox
+} // namespace cppbox

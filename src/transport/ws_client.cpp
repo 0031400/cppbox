@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 namespace {
 using PlainWsStream = WsStreamImpl<websocket::stream<tcp::socket>>;
 using TlsWsSocket = websocket::stream<beast::ssl_stream<tcp::socket>>;
@@ -50,7 +50,7 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
     ws.set_option(
         websocket::stream_base::decorator([this](websocket::request_type &req) {
           req.set(beast::http::field::host, config_.host_header);
-          req.set(beast::http::field::user_agent, "sbox-cpp/0.1");
+          req.set(beast::http::field::user_agent, "cppbox-cpp/0.1");
         }));
 
     co_await ws.async_handshake(config_.host_header, config_.path,
@@ -70,7 +70,7 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
   ws.set_option(
       websocket::stream_base::decorator([this](websocket::request_type &req) {
         req.set(beast::http::field::host, config_.host_header);
-        req.set(beast::http::field::user_agent, "sbox-cpp/0.1");
+        req.set(beast::http::field::user_agent, "cppbox-cpp/0.1");
       }));
 
   co_await ws.async_handshake(config_.host_header, config_.path,
@@ -79,4 +79,4 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
   co_return std::make_unique<TlsWsStream>(std::move(ws));
 }
 
-} // namespace sbox
+} // namespace cppbox

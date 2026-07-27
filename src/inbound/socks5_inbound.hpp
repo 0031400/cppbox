@@ -5,7 +5,7 @@
 #include <boost/asio.hpp>
 #include <functional>
 
-namespace sbox {
+namespace cppbox {
 class Socks5Inbound : public Inbound {
 public:
   using Handler = std::function<asio::awaitable<void>(tcp::socket, Session)>;
@@ -17,4 +17,4 @@ private:
   tcp::acceptor acceptor_;
   Handler handler_;
 };
-}; // namespace sbox
+}; // namespace cppbox

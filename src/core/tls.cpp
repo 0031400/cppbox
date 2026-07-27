@@ -10,7 +10,7 @@
 #include <windows.h>
 #endif
 
-namespace sbox::tls {
+namespace cppbox::tls {
 namespace {
 #ifdef _WIN32
 X509_STORE *system_root_store() {
@@ -75,4 +75,4 @@ void configure_tls_context(ssl::context &context, bool insecure) {
   context.set_verify_mode(insecure ? ssl::verify_none : ssl::verify_peer);
 }
 
-} // namespace sbox::tls
+} // namespace cppbox::tls

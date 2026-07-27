@@ -15,7 +15,7 @@
 #include <exception>
 #include <functional>
 
-namespace sbox {
+namespace cppbox {
 
 Socks5Inbound::Socks5Inbound(asio::io_context &io, tcp::endpoint endpoint,
                              Handler handler)
@@ -40,7 +40,7 @@ asio::awaitable<void> Socks5Inbound::handle_client(tcp::socket socket) {
 asio::awaitable<void> write_success_reply(tcp::socket &socket) {
   static constexpr std::string_view reply =
       "HTTP/1.1 200 Connection Established\r\n"
-      "Proxy-Agent: sbox-cpp/0.1\r\n"
+      "Proxy-Agent: cppbox-cpp/0.1\r\n"
       "\r\n";
   co_await asio::async_write(socket, asio::buffer(reply), asio::use_awaitable);
 }
@@ -50,4 +50,4 @@ void Socks5Inbound::stop() noexcept {
   acceptor_.cancel(ignored);
   acceptor_.close(ignored);
 }
-}; // namespace sbox
+}; // namespace cppbox

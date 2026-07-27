@@ -2,7 +2,7 @@
 
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 
 std::uint16_t checksum(std::span<const std::uint8_t> data) {
   std::uint32_t sum = 0;
@@ -57,4 +57,4 @@ void recalc_tcp_checksum(std::uint8_t *ip, std::uint8_t *tcp,
   tcp[17] = static_cast<std::uint8_t>(value);
 }
 
-} // namespace sbox
+} // namespace cppbox

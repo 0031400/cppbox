@@ -14,7 +14,7 @@
 #include <vector>
 
 
-namespace sbox {
+namespace cppbox {
 
 AppConfig load_config(const std::string &path) {
   std::ifstream file(path);
@@ -225,4 +225,4 @@ AppConfig load_config(const std::string &path) {
   }
   return config;
 }
-}; // namespace sbox
+}; // namespace cppbox

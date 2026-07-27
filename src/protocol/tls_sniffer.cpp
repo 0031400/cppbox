@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 bool has_bytes(std::span<const unsigned char> data, std::size_t pos,
@@ -153,4 +153,4 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
   return std::nullopt;
 }
 
-} // namespace sbox
+} // namespace cppbox

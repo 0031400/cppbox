@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 
 class Connector;
 class Router;
@@ -53,4 +53,4 @@ private:
   Router &router_;
 };
 
-} // namespace sbox
+} // namespace cppbox

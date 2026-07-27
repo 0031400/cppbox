@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace sbox {
+namespace cppbox {
 RuleSet RuleSet::load_source(const std::string &path) {
   std::ifstream file(path);
   if (!file) {
@@ -44,4 +44,4 @@ bool RuleSet::match(const Destination &dst) const {
   }
   return false;
 }
-}; // namespace sbox
+}; // namespace cppbox

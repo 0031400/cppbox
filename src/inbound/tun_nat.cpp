@@ -2,7 +2,7 @@
 
 #include <functional>
 
-namespace sbox {
+namespace cppbox {
 
 std::size_t TunFlowKeyHash::operator()(const TunFlowKey &key) const noexcept {
   std::size_t hash = std::hash<std::uint32_t>{}(key.src_ip);
@@ -69,4 +69,4 @@ std::optional<TunNatSession> TunNat::lookup_back(std::uint16_t nat_port) {
   return std::nullopt;
 }
 
-} // namespace sbox
+} // namespace cppbox

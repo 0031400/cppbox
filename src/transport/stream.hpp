@@ -2,7 +2,7 @@
 #include "core/net.hpp"
 #include <boost/asio/awaitable.hpp>
 #include <vector>
-namespace sbox {
+namespace cppbox {
 class Stream{
     public:
     virtual ~Stream()=default;

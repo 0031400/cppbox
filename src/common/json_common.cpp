@@ -1,6 +1,6 @@
 #include "common/json_common.hpp"
 #include <stdexcept>
-namespace sbox {
+namespace cppbox {
 
 std::string get_string(const json::object &o, const char *key, bool force,
                        std::string def) {
@@ -61,4 +61,4 @@ std::vector<std::string> get_string_array(const json::object &o,
   }
   return {};
 }
-} // namespace sbox
+} // namespace cppbox

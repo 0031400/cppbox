@@ -12,7 +12,7 @@
 #include <ws2tcpip.h>
 
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 bool ok_or_exists(DWORD error) {
@@ -186,6 +186,6 @@ bool cleanup_tun_routes(const NET_LUID &luid, const std::string &tun_ip,
   return route_ok && address_ok;
 }
 
-} // namespace sbox
+} // namespace cppbox
 
 #endif

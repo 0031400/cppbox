@@ -3,7 +3,7 @@
 #include "core/session.hpp"
 #include "inbound/inbound.hpp"
 
-namespace sbox {
+namespace cppbox {
 class HttpInbound : public Inbound {
 public:
   using Handler = std::function<asio::awaitable<void>(tcp::socket, Session)>;
@@ -16,4 +16,4 @@ private:
   tcp::acceptor acceptor_;
   Handler handler_;
 };
-}; // namespace sbox
+}; // namespace cppbox

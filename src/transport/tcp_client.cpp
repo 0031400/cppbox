@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 using PlainTcpStream = TcpStreamImpl<tcp::socket>;
@@ -61,4 +61,4 @@ asio::awaitable<std::unique_ptr<Stream>> TcpClient::connect() {
   co_return std::make_unique<TlsTcpStream>(std::move(stream));
 }
 
-} // namespace sbox
+} // namespace cppbox

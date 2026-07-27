@@ -6,7 +6,7 @@
 #include "transport/ws_client.hpp"
 #include <boost/asio/io_context.hpp>
 
-namespace sbox {
+namespace cppbox {
 struct VlessOutboundConfig {
   Destination server;
   VlessConfig vless;
@@ -34,4 +34,4 @@ private:
   asio::awaitable<std::vector<unsigned char>>
   read_initial_payload(tcp::socket &tcp_socket);
 };
-}; // namespace sbox
+}; // namespace cppbox

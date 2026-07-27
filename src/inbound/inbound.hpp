@@ -1,6 +1,6 @@
 #pragma once
 #include <boost/asio/awaitable.hpp>
-namespace sbox {
+namespace cppbox {
 class Inbound {
 public:
   virtual ~Inbound() = default;
@@ -8,4 +8,4 @@ public:
   virtual void stop() noexcept = 0;
 
 };
-}; // namespace sbox
+}; // namespace cppbox

@@ -11,7 +11,7 @@
 #include <utility>
 
 
-namespace sbox {
+namespace cppbox {
 
 HttpInbound::HttpInbound(asio::io_context &io, tcp::endpoint endpoint,
                          Handler handler)
@@ -37,4 +37,4 @@ void HttpInbound::stop() noexcept {
   acceptor_.cancel(ignored);
   acceptor_.close(ignored);
 }
-} // namespace sbox
+} // namespace cppbox

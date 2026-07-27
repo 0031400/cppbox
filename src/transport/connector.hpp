@@ -4,7 +4,7 @@
 #include "core/net.hpp"
 #include "dns/dns.hpp"
 
-namespace sbox {
+namespace cppbox {
 
 class Connector {
 public:
@@ -25,4 +25,4 @@ private:
   std::uint32_t outbound_interface_index_{};
 };
 
-} // namespace sbox
+} // namespace cppbox

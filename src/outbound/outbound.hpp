@@ -3,10 +3,10 @@
 #include "core/utils.hpp"
 #include <boost/asio.hpp>
 
-namespace sbox {
+namespace cppbox {
 class Outbound {
 public:
   virtual ~Outbound() = default;
   virtual asio::awaitable<void> handle(tcp::socket socket, Session session) = 0;
 };
-}; // namespace sbox
+}; // namespace cppbox

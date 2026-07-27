@@ -4,8 +4,8 @@
 #include <span>
 #include <string>
 
-namespace sbox {
+namespace cppbox {
 
 std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data);
 
-} // namespace sbox
+} // namespace cppbox

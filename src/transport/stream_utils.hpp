@@ -2,7 +2,7 @@
 
 #include "core/net.hpp"
 #include "transport/stream.hpp"
-namespace sbox {
+namespace cppbox {
 
 inline bool is_stream_closed(const error_code &ec) {
   return ec == asio::error::eof || ec == asio::error::connection_reset ||
@@ -116,4 +116,4 @@ public:
 private:
   WebSocketLike ws_;
 };
-} // namespace sbox
+} // namespace cppbox

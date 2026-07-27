@@ -2,7 +2,7 @@
 #include "config/config.hpp"
 #include "core/session.hpp"
 #include <vector>
-namespace sbox {
+namespace cppbox {
 class RuleSet {
 public:
   static RuleSet load_source(const std::string &path);
@@ -11,4 +11,4 @@ public:
 private:
   std::vector<RouteRuleConfig> rules_;
 };
-}; // namespace sbox
+}; // namespace cppbox

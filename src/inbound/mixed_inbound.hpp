@@ -5,7 +5,7 @@
 #include <boost/asio/awaitable.hpp>
 #include <functional>
 
-namespace sbox {
+namespace cppbox {
 class MixedInbound : public Inbound {
 
 public:
@@ -18,4 +18,4 @@ private:
   tcp::acceptor acceptor_;
   Handler handler_;
 };
-}; // namespace sbox
+}; // namespace cppbox

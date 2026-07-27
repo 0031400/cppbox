@@ -10,7 +10,7 @@
 #include <ws2tcpip.h>
 #endif
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 #ifdef _WIN32
@@ -129,4 +129,4 @@ asio::awaitable<void> Connector::connect(udp::socket &socket,
   }
 }
 
-} // namespace sbox
+} // namespace cppbox

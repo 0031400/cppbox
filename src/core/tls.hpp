@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-namespace sbox::tls {
+namespace cppbox::tls {
 
 void configure_tls_context(ssl::context &context, bool insecure);
 
@@ -30,4 +30,4 @@ void configure_tls_stream_identity(SslStream &stream, std::string_view server_na
   }
 }
 
-} // namespace sbox::tls
+} // namespace cppbox::tls

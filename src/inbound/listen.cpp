@@ -1,5 +1,5 @@
 #include "inbound/listen.hpp"
-namespace sbox {
+namespace cppbox {
 
 tcp::acceptor make_acceptor(asio::io_context &io,
                             const tcp::endpoint &endpoint) {
@@ -13,4 +13,4 @@ tcp::acceptor make_acceptor(asio::io_context &io,
   return acceptor;
 }
 
-} // namespace sbox
+} // namespace cppbox

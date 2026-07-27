@@ -7,7 +7,7 @@
 #include <Windows.h>
 #endif
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 #ifdef _WIN32
@@ -94,4 +94,4 @@ void Shutdown::run_callbacks_once() {
   }
 }
 
-} // namespace sbox
+} // namespace cppbox

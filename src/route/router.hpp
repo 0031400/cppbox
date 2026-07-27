@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-namespace sbox {
+namespace cppbox {
 
 class Router {
 public:
@@ -34,4 +34,4 @@ private:
   RouteConfig config_;
   std::unordered_map<std::string, std::shared_ptr<RuleSet>> rule_sets_;
 };
-}; // namespace sbox
+}; // namespace cppbox

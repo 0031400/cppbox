@@ -5,7 +5,7 @@
 #include <atomic>
 #include <string>
 #include "core/net.hpp"
-namespace sbox {
+namespace cppbox {
 
 class DnsInbound final : public Inbound {
 public:
@@ -24,4 +24,4 @@ private:
   std::atomic_bool stopping_{false};
 };
 
-} // namespace sbox
+} // namespace cppbox

@@ -13,7 +13,7 @@
 #include <string_view>
 #include <vector>
 
-namespace sbox {
+namespace cppbox {
 
 void require(bool ok, std::string_view message) {
   if (!ok) {
@@ -104,4 +104,4 @@ void close_socket(tcp::socket &socket) {
   socket.close(ignored);
 }
 
-} // namespace sbox
+} // namespace cppbox

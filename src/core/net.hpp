@@ -3,7 +3,7 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/beast.hpp>
 
-namespace sbox {
+namespace cppbox {
 using error_code = boost::system::error_code;
 namespace asio = boost::asio;
 namespace ip = asio::ip;
@@ -12,4 +12,4 @@ using udp = ip::udp;
 namespace ssl = asio::ssl;
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
-}; // namespace sbox
+}; // namespace cppbox

@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
-project(sbox LANGUAGES CXX)
+project(cppbox LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Boost CONFIG REQUIRED COMPONENTS system json)
 find_package(OpenSSL REQUIRED)
-add_executable(sbox
+add_executable(cppbox
     src/main.cpp
     src/common/json_common.cpp
     src/config/config.cpp
@@ -41,21 +41,21 @@ add_executable(sbox
     src/transport/connector.cpp
 )
 if(WIN32)
-    target_sources(sbox PRIVATE
+    target_sources(cppbox PRIVATE
         src/platform/windows_proxy.cpp
     )
 endif()
-target_include_directories(sbox PRIVATE src)
+target_include_directories(cppbox PRIVATE src)
 target_compile_definitions(
-    sbox PRIVATE BOOST_ASIO_NO_DEPRECATED
+    cppbox PRIVATE BOOST_ASIO_NO_DEPRECATED
 )
-target_link_libraries(sbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
+target_link_libraries(cppbox PRIVATE Boost::system OpenSSL::SSL OpenSSL::Crypto Boost::json)
 if(WIN32)
-    target_compile_definitions(sbox PRIVATE
+    target_compile_definitions(cppbox PRIVATE
         _WIN32_WINNT=0x0A00
     )
-    target_link_libraries(sbox PRIVATE crypt32 iphlpapi ws2_32 wininet)
+    target_link_libraries(cppbox PRIVATE crypt32 iphlpapi ws2_32 wininet)
 endif()
 if(MSVC)
-    target_compile_options(sbox PRIVATE /bigobj)
+    target_compile_options(cppbox PRIVATE /bigobj)
 endif()

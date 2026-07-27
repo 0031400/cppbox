@@ -4,7 +4,7 @@
             "name": "(Windows) 启动",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/sbox.exe",
+            "program": "${workspaceFolder}/build/cppbox.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",

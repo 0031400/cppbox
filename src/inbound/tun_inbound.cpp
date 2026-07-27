@@ -19,7 +19,7 @@
 #include <windows.h>
 #endif
 
-namespace sbox {
+namespace cppbox {
 namespace {
 
 constexpr std::uint8_t tcp_protocol = 6;
@@ -46,7 +46,7 @@ asio::awaitable<void> TunInbound::start() {
     throw std::runtime_error("failed to load wintun.dll");
   }
 
-  if (!wintun_.open_adapter(L"SboxTun")) {
+  if (!wintun_.open_adapter(L"cppboxTun")) {
     throw std::runtime_error("failed to open wintun adapter");
   }
 
@@ -251,4 +251,4 @@ void TunInbound::stop() noexcept {
   }
 }
 
-} // namespace sbox
+} // namespace cppbox

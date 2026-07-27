@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace sbox {
+namespace cppbox {
 Router::Router(RouteConfig config) : config_(std::move(config)) {
   for (const auto &item : config_.rule_sets) {
     if (item.type != "local") {
@@ -173,4 +173,4 @@ bool Router::match_rule(const RouteRuleConfig &rule,
   }
   return false;
 }
-}; // namespace sbox
+}; // namespace cppbox

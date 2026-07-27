@@ -2,7 +2,7 @@
 #include "core/session.hpp"
 #include <string>
 #include <vector>
-namespace sbox {
+namespace cppbox {
 struct VlessConfig {
   std::string uuid;
 };
@@ -15,4 +15,4 @@ public:
 private:
   VlessConfig config_;
 };
-}; // namespace sbox
+}; // namespace cppbox

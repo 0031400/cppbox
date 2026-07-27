@@ -13,7 +13,7 @@
 #include <string>
 #include <thread>
 
-namespace sbox {
+namespace cppbox {
 
 struct TunInboundConfig {
   std::string tun_ip;
@@ -57,4 +57,4 @@ private:
   std::uint16_t tcp_listen_port_{};
 };
 
-} // namespace sbox
+} // namespace cppbox

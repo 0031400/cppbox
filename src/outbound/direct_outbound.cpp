@@ -11,7 +11,7 @@
 #include <exception>
 #include <string>
 
-namespace sbox {
+namespace cppbox {
 
 using asio::experimental::awaitable_operators::operator||;
 DirectOutbound::DirectOutbound(asio::io_context &io, Connector &connector)
@@ -51,4 +51,4 @@ asio::awaitable<void> DirectOutbound::relay(tcp::socket &from,
                                asio::use_awaitable);
   }
 }
-}; // namespace sbox
+}; // namespace cppbox

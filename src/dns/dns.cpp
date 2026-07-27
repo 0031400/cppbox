@@ -19,7 +19,7 @@
 #include <string>
 #include <utility>
 
-namespace sbox {
+namespace cppbox {
 
 namespace {
 
@@ -317,7 +317,7 @@ DnsServer::async_query_https(const DnsItemConfig &nameserver, Bytes message) {
   http::request<http::vector_body<std::uint8_t>> req{http::verb::post,
                                                      nameserver.path, 11};
   req.set(http::field::host, host_header);
-  req.set(http::field::user_agent, "sbox-cpp/0.1");
+  req.set(http::field::user_agent, "cppbox-cpp/0.1");
   req.set(http::field::content_type, "application/dns-message");
   req.set(http::field::accept, "application/dns-message");
   req.body() = std::move(message);
@@ -377,4 +377,4 @@ DnsServer::resolve(const DomainName &domain) {
   throw std::runtime_error("DNS returned no address for " + domain.value());
 }
 
-} // namespace sbox
+} // namespace cppbox

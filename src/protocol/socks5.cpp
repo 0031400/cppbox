@@ -7,7 +7,7 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/write.hpp>
 
-namespace sbox::socks5 {
+namespace cppbox::socks5 {
 namespace {
 
 asio::awaitable<Host> read_host(tcp::socket &socket, unsigned char atyp) {
@@ -91,4 +91,4 @@ asio::awaitable<void> write_success_reply(tcp::socket &socket) {
   co_await asio::async_write(socket, asio::buffer(reply), asio::use_awaitable);
 }
 
-} // namespace sbox::socks5
+} // namespace cppbox::socks5
