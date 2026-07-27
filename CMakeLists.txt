@@ -21,6 +21,7 @@ add_executable(sbox
     src/inbound/mixed_inbound.cpp
     src/inbound/socks5_inbound.cpp
     src/inbound/tun_wintun.cpp
+    src/inbound/listen.cpp
     src/inbound/tun_route.cpp
     src/inbound/tun_nat.cpp
     src/inbound/tun_inbound.cpp

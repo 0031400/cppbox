@@ -1,6 +1,8 @@
 #pragma once
 
+#include "core/utils.hpp"
 #include "core/net.hpp"
+
 
 #include <array>
 #include <cctype>
