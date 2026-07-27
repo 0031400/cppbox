@@ -9,6 +9,7 @@ add_executable(sbox
     src/main.cpp
     src/common/json_common.cpp
     src/config/config.cpp
+    src/core/address.cpp
     src/core/log.cpp
     src/core/shutdown.cpp
     src/core/tls.cpp
