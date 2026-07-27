@@ -2,6 +2,7 @@
 #include "config/config.hpp"
 #include "core/log.hpp"
 #include "protocol/tls_sniffer.hpp"
+#include "transport/stream_utils.hpp"
 #include "transport/tcp_client.hpp"
 #include "transport/ws_client.hpp"
 #include <array>
@@ -64,9 +65,7 @@ VlessOutbound::read_initial_payload(tcp::socket &tcp_socket) {
 
   auto n = co_await tcp_socket.async_read_some(
       asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
-
-  if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-      ec == asio::error::operation_aborted) {
+  if (is_stream_closed(ec)) {
     co_return std::vector<unsigned char>{};
   }
 
@@ -131,8 +130,7 @@ VlessOutbound::relay_tcp_to_stream(tcp::socket &tcp_socket, Stream &stream) {
     auto n = co_await tcp_socket.async_read_some(
         asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return;
     }
 
@@ -161,8 +159,7 @@ VlessOutbound::relay_stream_to_tcp(Stream &stream, tcp::socket &tcp_socket) {
     error_code ec;
     co_await asio::async_write(tcp_socket, asio::buffer(bytes),
                                asio::redirect_error(asio::use_awaitable, ec));
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return;
     }
     if (ec) {

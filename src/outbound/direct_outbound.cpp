@@ -1,5 +1,6 @@
 #include "outbound/direct_outbound.hpp"
 #include "core/net.hpp"
+#include "transport/stream_utils.hpp"
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
@@ -38,8 +39,7 @@ asio::awaitable<void> DirectOutbound::relay(tcp::socket &from,
     auto n = co_await from.async_read_some(
         asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return;
     }
 

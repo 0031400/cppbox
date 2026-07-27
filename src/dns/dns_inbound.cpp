@@ -14,7 +14,6 @@
 namespace sbox {
 namespace {
 
-using udp = asio::ip::udp;
 std::string endpoint_text(const udp::endpoint &endpoint) {
   return endpoint.address().to_string() + ":" + std::to_string(endpoint.port());
 }

@@ -2,6 +2,7 @@
 #include "core/log.hpp"
 #include "core/net.hpp"
 #include "core/tls.hpp"
+#include "transport/stream_utils.hpp"
 #include <array>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/redirect_error.hpp>
@@ -34,8 +35,7 @@ public:
     auto n = co_await socket_.async_read_some(
         asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return std::vector<unsigned char>{};
     }
 
@@ -53,8 +53,7 @@ public:
     co_await asio::async_write(socket_, asio::buffer(bytes),
                                asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return;
     }
 
@@ -87,8 +86,7 @@ public:
     auto n = co_await stream_.async_read_some(
         asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return std::vector<unsigned char>{};
     }
 
@@ -106,8 +104,7 @@ public:
     co_await asio::async_write(stream_, asio::buffer(bytes),
                                asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == asio::error::eof || ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_stream_closed(ec)) {
       co_return;
     }
 

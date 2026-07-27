@@ -1,5 +1,6 @@
 #include "transport/ws_client.hpp"
 #include "core/tls.hpp"
+#include "transport/stream_utils.hpp"
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/ssl/host_name_verification.hpp>
@@ -34,9 +35,7 @@ public:
     co_await ws_.async_read(buffer,
                             asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == websocket::error::closed || ec == asio::error::eof ||
-        ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_websocket_closed(ec)) {
       co_return std::vector<unsigned char>{};
     }
 
@@ -56,9 +55,7 @@ public:
     co_await ws_.async_write(asio::buffer(bytes),
                              asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == websocket::error::closed || ec == asio::error::eof ||
-        ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_websocket_closed(ec)) {
       co_return;
     }
 
@@ -92,9 +89,7 @@ public:
     co_await ws_.async_read(buffer,
                             asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == websocket::error::closed || ec == asio::error::eof ||
-        ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_websocket_closed(ec)) {
       co_return std::vector<unsigned char>{};
     }
 
@@ -114,9 +109,7 @@ public:
     co_await ws_.async_write(asio::buffer(bytes),
                              asio::redirect_error(asio::use_awaitable, ec));
 
-    if (ec == websocket::error::closed || ec == asio::error::eof ||
-        ec == asio::error::connection_reset ||
-        ec == asio::error::operation_aborted) {
+    if (is_websocket_closed(ec)) {
       co_return;
     }
 

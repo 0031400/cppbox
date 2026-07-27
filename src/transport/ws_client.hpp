@@ -15,12 +15,7 @@
 #include <memory>
 #include <string>
 
-
 namespace sbox {
-
-namespace beast = boost::beast;
-namespace websocket = beast::websocket;
-namespace ssl = boost::asio::ssl;
 
 struct WsClientConfig {
   Destination server;

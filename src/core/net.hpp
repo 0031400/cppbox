@@ -4,10 +4,11 @@
 #include <boost/beast.hpp>
 
 namespace sbox {
+using error_code = boost::system::error_code;
 namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
-using error_code = boost::system::error_code;
+using udp = asio::ip::udp;
 namespace ssl = asio::ssl;
 namespace beast = boost::beast;
-using udp = asio::ip::udp;
+namespace websocket = beast::websocket;
 }; // namespace sbox
