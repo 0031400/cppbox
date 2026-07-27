@@ -15,17 +15,17 @@ asio::awaitable<Host> read_host(tcp::socket &socket, unsigned char atyp) {
     std::array<unsigned char, 4> raw{};
     co_await asio::async_read(socket, asio::buffer(raw), asio::use_awaitable);
 
-    asio::ip::address_v4::bytes_type bytes{raw[0], raw[1], raw[2], raw[3]};
-    co_return Host(IPv4Address(asio::ip::address_v4(bytes)));
+    ip::address_v4::bytes_type bytes{raw[0], raw[1], raw[2], raw[3]};
+    co_return Host(IPv4Address(ip::address_v4(bytes)));
   }
 
   if (atyp == 0x04) {
     std::array<unsigned char, 16> raw{};
     co_await asio::async_read(socket, asio::buffer(raw), asio::use_awaitable);
 
-    asio::ip::address_v6::bytes_type bytes{};
+    ip::address_v6::bytes_type bytes{};
     std::copy(raw.begin(), raw.end(), bytes.begin());
-    co_return Host(IPv6Address(asio::ip::address_v6(bytes)));
+    co_return Host(IPv6Address(ip::address_v6(bytes)));
   }
 
   if (atyp == 0x03) {

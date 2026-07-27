@@ -1,13 +1,11 @@
 #include "protocol/tls_sniffer.hpp"
+#include "core/net.hpp"
+#include "core/utils.hpp"
 #include <cstddef>
 #include <cstdint>
 
 namespace sbox {
 namespace {
-
-std::uint16_t read_u16(std::span<const unsigned char> data, std::size_t pos) {
-  return static_cast<std::uint16_t>((data[pos] << 8) | data[pos + 1]);
-}
 
 bool has_bytes(std::span<const unsigned char> data, std::size_t pos,
                std::size_t size) {
@@ -26,7 +24,7 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
     return std::nullopt;
   }
 
-  const auto record_len = read_u16(data, 3);
+  const auto record_len = read_be16(data, 3);
   if (!has_bytes(data, 5, record_len)) {
     return std::nullopt;
   }
@@ -69,7 +67,7 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
   if (!has_bytes(data, pos, 2)) {
     return std::nullopt;
   }
-  const auto cipher_suites_len = read_u16(data, pos);
+  const auto cipher_suites_len = read_be16(data, pos);
   pos += 2;
   if (!has_bytes(data, pos, cipher_suites_len)) {
     return std::nullopt;
@@ -91,7 +89,7 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
   if (!has_bytes(data, pos, 2)) {
     return std::nullopt;
   }
-  const auto extensions_len = read_u16(data, pos);
+  const auto extensions_len = read_be16(data, pos);
   pos += 2;
   if (!has_bytes(data, pos, extensions_len)) {
     return std::nullopt;
@@ -104,8 +102,8 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
       return std::nullopt;
     }
 
-    const auto extension_type = read_u16(data, pos);
-    const auto extension_len = read_u16(data, pos + 2);
+    const auto extension_type = read_be16(data, pos);
+    const auto extension_len = read_be16(data, pos + 2);
     pos += 4;
 
     if (!has_bytes(data, pos, extension_len)) {
@@ -119,7 +117,7 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
       }
 
       std::size_t name_pos = pos + 2;
-      const auto name_list_len = read_u16(data, pos);
+      const auto name_list_len = read_be16(data, pos);
       const auto name_list_end = name_pos + name_list_len;
 
       if (!has_bytes(data, name_pos, name_list_len)) {
@@ -132,7 +130,7 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
         }
 
         const auto name_type = data[name_pos];
-        const auto name_len = read_u16(data, name_pos + 1);
+        const auto name_len = read_be16(data, name_pos + 1);
         name_pos += 3;
 
         if (!has_bytes(data, name_pos, name_len)) {
@@ -142,8 +140,7 @@ std::optional<std::string> sniff_tls_sni(std::span<const unsigned char> data) {
         // host_name
         if (name_type == 0x00) {
           return std::string(
-              reinterpret_cast<const char *>(data.data() + name_pos),
-              name_len);
+              reinterpret_cast<const char *>(data.data() + name_pos), name_len);
         }
 
         name_pos += name_len;

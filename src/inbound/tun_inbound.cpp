@@ -6,7 +6,6 @@
 #include "inbound/tun_checksum.hpp"
 #include "inbound/tun_route.hpp"
 
-#include <array>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -25,28 +24,8 @@ namespace {
 
 constexpr std::uint8_t tcp_protocol = 6;
 
-void write_be16(std::uint8_t *p, std::uint16_t value) {
-  p[0] = static_cast<std::uint8_t>(value >> 8);
-  p[1] = static_cast<std::uint8_t>(value);
-}
-
-std::uint32_t ipv4_to_net_order_u32(const std::string &text) {
-  auto addr = boost::asio::ip::make_address_v4(text);
-  auto bytes = addr.to_bytes();
-
-  std::uint32_t value{};
-  std::memcpy(&value, bytes.data(), sizeof(value));
-  return value;
-}
-
-boost::asio::ip::address_v4 address_from_net_u32(std::uint32_t value) {
-  std::array<unsigned char, 4> bytes{};
-  std::memcpy(bytes.data(), &value, sizeof(value));
-  return boost::asio::ip::address_v4(bytes);
-}
-
 std::string ipv4_to_string(std::uint32_t value) {
-  return address_from_net_u32(value).to_string();
+  return address_v4_from_net_order_u32(value).to_string();
 }
 
 } // namespace
@@ -83,7 +62,7 @@ asio::awaitable<void> TunInbound::start() {
   }
   routes_configured_ = true;
   boost::system::error_code ec;
-  tcp::endpoint endpoint(address_from_net_u32(tun_ip_), 0);
+  tcp::endpoint endpoint(address_v4_from_net_order_u32(tun_ip_), 0);
 
   acceptor_.open(endpoint.protocol(), ec);
   if (ec) {

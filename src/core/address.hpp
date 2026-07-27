@@ -1,14 +1,11 @@
 #pragma once
 
-#include <boost/asio/ip/address.hpp>
-#include <boost/asio/ip/address_v4.hpp>
-#include <boost/asio/ip/address_v6.hpp>
+#include "core/net.hpp"
 #include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
-#include <boost/asio.hpp>
 
 namespace sbox {
 
@@ -17,57 +14,61 @@ enum class HostType {
   IPv6,
   Domain,
 };
-
+inline bool is_ip_literal(std::string_view text) {
+  error_code ec;
+  ip::make_address(text, ec);
+  return !ec;
+}
 class IPv4Address {
 public:
-  explicit IPv4Address(boost::asio::ip::address_v4 value) : value_(value) {}
+  explicit IPv4Address(ip::address_v4 value) : value_(value) {}
 
   static bool is_valid(const std::string &text) {
-    boost::system::error_code ec;
-    boost::asio::ip::make_address_v4(text, ec);
+    error_code ec;
+    ip::make_address_v4(text, ec);
     return !ec;
   }
 
   static IPv4Address parse(const std::string &text) {
-    boost::system::error_code ec;
-    auto value = boost::asio::ip::make_address_v4(text, ec);
+    error_code ec;
+    auto value = ip::make_address_v4(text, ec);
     if (ec) {
       throw std::runtime_error("invalid IPv4 address: " + text);
     }
     return IPv4Address(value);
   }
 
-  const boost::asio::ip::address_v4 &value() const { return value_; }
+  const ip::address_v4 &value() const { return value_; }
   std::string to_string() const { return value_.to_string(); }
 
 private:
-  boost::asio::ip::address_v4 value_;
+  ip::address_v4 value_;
 };
 
 class IPv6Address {
 public:
-  explicit IPv6Address(boost::asio::ip::address_v6 value) : value_(value) {}
+  explicit IPv6Address(ip::address_v6 value) : value_(value) {}
 
   static bool is_valid(const std::string &text) {
-    boost::system::error_code ec;
-    boost::asio::ip::make_address_v6(text, ec);
+    error_code ec;
+    ip::make_address_v6(text, ec);
     return !ec;
   }
 
   static IPv6Address parse(const std::string &text) {
-    boost::system::error_code ec;
-    auto value = boost::asio::ip::make_address_v6(text, ec);
+    error_code ec;
+    auto value = ip::make_address_v6(text, ec);
     if (ec) {
       throw std::runtime_error("invalid IPv6 address: " + text);
     }
     return IPv6Address(value);
   }
 
-  const boost::asio::ip::address_v6 &value() const { return value_; }
+  const ip::address_v6 &value() const { return value_; }
   std::string to_string() const { return value_.to_string(); }
 
 private:
-  boost::asio::ip::address_v6 value_;
+  ip::address_v6 value_;
 };
 
 class DomainName {
@@ -87,7 +88,21 @@ public:
 private:
   std::string value_;
 };
+inline std::uint32_t ipv4_to_net_order_u32(const std::string &text) {
+  auto addr = ip::make_address_v4(text);
+  auto bytes = addr.to_bytes();
 
+  std::uint32_t value{};
+  std::memcpy(&value, bytes.data(), sizeof(value));
+  return value;
+}
+
+inline ip::address_v4
+address_v4_from_net_order_u32(std::uint32_t value) {
+  std::array<unsigned char, 4> bytes{};
+  std::memcpy(bytes.data(), &value, sizeof(value));
+  return ip::address_v4(bytes);
+}
 class Host {
 public:
   using Value = std::variant<IPv4Address, IPv6Address, DomainName>;
@@ -133,10 +148,11 @@ public:
   bool is_domain() const { return type() == HostType::Domain; }
 
   std::string to_string() const {
-    return std::visit([](const auto &item) { return item.to_string(); }, value_);
+    return std::visit([](const auto &item) { return item.to_string(); },
+                      value_);
   }
 
-  boost::asio::ip::address asio_address() const {
+  ip::address asio_address() const {
     if (const auto *v4 = std::get_if<IPv4Address>(&value_)) {
       return v4->value();
     }
@@ -168,11 +184,11 @@ struct Destination {
 };
 
 struct ResolvedEndpoint {
-  boost::asio::ip::address address;
+  ip::address address;
   std::uint16_t port;
 
-  boost::asio::ip::tcp::endpoint tcp_endpoint() const {
-    return boost::asio::ip::tcp::endpoint(address, port);
+  tcp::endpoint tcp_endpoint() const {
+    return tcp::endpoint(address, port);
   }
 };
 

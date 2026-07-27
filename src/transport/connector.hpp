@@ -18,7 +18,7 @@ public:
                                 const Destination &destination);
 
 private:
-  asio::awaitable<std::vector<asio::ip::address>>
+  asio::awaitable<std::vector<ip::address>>
   resolve_destination(const Destination &destination);
 
   DnsServer &dns_server_;

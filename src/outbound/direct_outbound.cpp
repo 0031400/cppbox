@@ -13,7 +13,7 @@
 
 namespace sbox {
 
-using boost::asio::experimental::awaitable_operators::operator||;
+using asio::experimental::awaitable_operators::operator||;
 DirectOutbound::DirectOutbound(asio::io_context &io, Connector &connector)
     : connector_(connector) {}
 asio::awaitable<void> DirectOutbound::handle(tcp::socket inbound,

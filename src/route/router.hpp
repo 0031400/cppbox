@@ -23,7 +23,7 @@ private:
   static bool contains(const std::string &text, const std::string &keyword);
   static bool is_ip(const Destination &dst);
   static bool match_domain(const RouteRuleConfig &rule, const Destination &dst);
-  static std::uint32_t ipv4_to_u32(const boost::asio::ip::address_v4 &ip);
+  static std::uint32_t ipv4_to_u32(const ip::address_v4 &ip);
   static bool match_ipv4_cidr(const std::string &ip_text,
                               const std::string &cidr);
   static bool match_ipv6_cidr(const std::string &ip_text,

@@ -54,7 +54,7 @@ udp::endpoint parse_endpoint(std::string_view listen) {
   }
 
   boost::system::error_code error;
-  const auto address = asio::ip::make_address(host, error);
+  const auto address = ip::make_address(host, error);
   if (error) {
     throw std::runtime_error("invalid DNS listen IP: " + std::string(host));
   }

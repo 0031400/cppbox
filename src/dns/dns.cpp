@@ -1,5 +1,7 @@
 #include "dns/dns.hpp"
+#include "core/net.hpp"
 #include "core/tls.hpp"
+#include "core/utils.hpp"
 #include "route/router.hpp"
 #include "transport/connector.hpp"
 #include <array>
@@ -17,9 +19,7 @@
 #include <string>
 #include <utility>
 
-
 namespace sbox {
-namespace ip = asio::ip;
 
 namespace {
 
@@ -38,16 +38,6 @@ Bytes add_tcp_length(std::span<const std::uint8_t> message) {
   return framed;
 }
 
-std::uint16_t read_tcp_length(const std::array<std::uint8_t, 2> &bytes) {
-  return static_cast<std::uint16_t>((bytes[0] << 8) | bytes[1]);
-}
-
-bool is_ip_literal(std::string_view host) {
-  boost::system::error_code ec;
-  asio::ip::make_address(host, ec);
-  return !ec;
-}
-
 std::string normalize_domain(std::string_view domain) {
   std::string result;
   result.reserve(domain.size());
@@ -62,11 +52,6 @@ std::string normalize_domain(std::string_view domain) {
   }
 
   return result;
-}
-
-bool ends_with(std::string_view text, std::string_view suffix) {
-  return text.size() >= suffix.size() &&
-         text.substr(text.size() - suffix.size()) == suffix;
 }
 
 } // namespace
@@ -157,13 +142,13 @@ bool DnsServer::match_rule(const DnsRouteRuleConfig &rule,
     }
 
     if (suffix.front() == '.') {
-      if (ends_with(domain, suffix)) {
+      if (domain.ends_with(suffix)) {
         return true;
       }
       continue;
     }
 
-    if (domain == suffix || ends_with(domain, "." + suffix)) {
+    if (domain == suffix || domain.ends_with("." + suffix)) {
       return true;
     }
   }
@@ -268,7 +253,7 @@ DnsServer::async_query_tcp(const DnsItemConfig &nameserver, Bytes message) {
   co_await asio::async_read(socket, asio::buffer(length_bytes),
                             asio::use_awaitable);
 
-  Bytes response(read_tcp_length(length_bytes));
+  Bytes response(read_be16(length_bytes.data()));
   co_await asio::async_read(socket, asio::buffer(response),
                             asio::use_awaitable);
 
@@ -299,7 +284,7 @@ DnsServer::async_query_tls(const DnsItemConfig &nameserver, Bytes message) {
   co_await asio::async_read(stream, asio::buffer(length_bytes),
                             asio::use_awaitable);
 
-  Bytes response(read_tcp_length(length_bytes));
+  Bytes response(read_be16(length_bytes.data()));
   co_await asio::async_read(stream, asio::buffer(response),
                             asio::use_awaitable);
 

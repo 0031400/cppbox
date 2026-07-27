@@ -52,10 +52,10 @@ void Connector::set_outbound_interface_index(std::uint32_t index) {
   outbound_interface_index_ = index;
 }
 
-asio::awaitable<std::vector<asio::ip::address>>
+asio::awaitable<std::vector<ip::address>>
 Connector::resolve_destination(const Destination &destination) {
   if (destination.host.is_ip()) {
-    co_return std::vector<asio::ip::address>{destination.host.asio_address()};
+    co_return std::vector<ip::address>{destination.host.asio_address()};
   }
 
   co_return co_await dns_server_.resolve(destination.host.domain());

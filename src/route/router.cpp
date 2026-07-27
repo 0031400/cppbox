@@ -76,7 +76,7 @@ bool Router::match_domain(const RouteRuleConfig &rule, const Destination &dst) {
   }
   return false;
 }
-std::uint32_t Router::ipv4_to_u32(const boost::asio::ip::address_v4 &ip) {
+std::uint32_t Router::ipv4_to_u32(const ip::address_v4 &ip) {
   auto b = ip.to_bytes();
   return (static_cast<std::uint32_t>(b[0]) << 24) |
          (static_cast<std::uint32_t>(b[1]) << 16) |
@@ -90,8 +90,8 @@ bool Router::match_ipv4_cidr(const std::string &ip_text,
   if (slash == std::string::npos) {
     return ip_text == cidr;
   }
-  auto base = boost::asio::ip::make_address_v4(cidr.substr(0, slash));
-  auto ip = boost::asio::ip::make_address_v4(ip_text);
+  auto base = ip::make_address_v4(cidr.substr(0, slash));
+  auto ip = ip::make_address_v4(ip_text);
   int prefix = std::stoi(cidr.substr(slash + 1));
   if (prefix < 0 || prefix > 32) {
     return false;
@@ -105,8 +105,8 @@ bool Router::match_ipv6_cidr(const std::string &ip_text,
   if (slash == std::string::npos) {
     return ip_text == cidr;
   }
-  auto base = boost::asio::ip::make_address_v6(cidr.substr(0, slash));
-  auto ip = boost::asio::ip::make_address_v6(ip_text);
+  auto base = ip::make_address_v6(cidr.substr(0, slash));
+  auto ip = ip::make_address_v6(ip_text);
   auto base_bytes = base.to_bytes();
   auto ip_bytes = ip.to_bytes();
   int prefix = std::stoi(cidr.substr(slash + 1));

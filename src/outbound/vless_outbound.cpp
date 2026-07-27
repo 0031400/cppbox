@@ -17,7 +17,7 @@
 #include <vector>
 
 namespace sbox {
-using boost::asio::experimental::awaitable_operators::operator||;
+using asio::experimental::awaitable_operators::operator||;
 namespace {
 TlsConfig normalize_tls(const std::optional<TlsConfig> &tls,
                         const std::string &server) {

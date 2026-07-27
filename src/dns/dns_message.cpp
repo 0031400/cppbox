@@ -1,31 +1,15 @@
 #include "dns_message.hpp"
+#include "core/utils.hpp"
 #include <cstdint>
 #include <format>
 #include <span>
 #include <stdexcept>
 #include <utility>
 #include <vector>
+
 namespace sbox {
 namespace {
-std::uint16_t read_u16(std::span<const std::uint8_t> data, std::size_t offset) {
-  if (offset + 2 > data.size()) {
-    throw std::runtime_error("truncated dns packet");
-  }
-  return static_cast<std::uint16_t>((data[offset] << 8 | data[offset + 1]));
-}
-std::uint32_t read_u32(std::span<const std::uint8_t> data, std::size_t offset) {
-  if (offset + 4 > data.size()) {
-    throw std::runtime_error("truncated dns packet");
-  }
-  return (static_cast<std::uint32_t>(data[offset]) << 24) |
-         (static_cast<std::uint32_t>(data[offset + 1]) << 16) |
-         (static_cast<std::uint32_t>(data[offset + 2]) << 8) |
-         (static_cast<std::uint32_t>(data[offset + 3]));
-}
-void push_u16(Bytes &out, std::uint16_t value) {
-  out.push_back(static_cast<std::uint8_t>(value >> 8));
-  out.push_back(static_cast<std::uint8_t>(value & 0xff));
-}
+
 std::string read_name(std::span<const std::uint8_t> data, std::size_t &offset,
                       int depth = 0) {
   if (depth > 16) {
@@ -127,7 +111,7 @@ DnsQuestion parse_question(std::span<const std::uint8_t> packet) {
     throw std::runtime_error("dns request too short");
   }
 
-  const auto qdcount = read_u16(packet, 4);
+  const auto qdcount = read_be16(packet, 4);
   if (qdcount == 0) {
     throw std::runtime_error("dns request has no question");
   }
@@ -139,7 +123,7 @@ DnsQuestion parse_question(std::span<const std::uint8_t> packet) {
     throw std::runtime_error("truncated dns question");
   }
 
-  const auto type_raw = read_u16(packet, offset);
+  const auto type_raw = read_be16(packet, offset);
   return DnsQuestion{
       .name = std::move(name),
       .type = static_cast<QueryType>(type_raw),
@@ -147,12 +131,12 @@ DnsQuestion parse_question(std::span<const std::uint8_t> packet) {
 }
 Bytes build_query(std::string_view domain, QueryType type) {
   Bytes packet;
-  push_u16(packet, 0x1234);
-  push_u16(packet, 0x0100);
-  push_u16(packet, 1);
-  push_u16(packet, 0);
-  push_u16(packet, 0);
-  push_u16(packet, 0);
+  write_be16(packet, 0x1234);
+  write_be16(packet, 0x0100);
+  write_be16(packet, 1);
+  write_be16(packet, 0);
+  write_be16(packet, 0);
+  write_be16(packet, 0);
   std::size_t start = 0;
   while (start < domain.size()) {
     const auto dot = domain.find('.', start);
@@ -171,16 +155,16 @@ Bytes build_query(std::string_view domain, QueryType type) {
     start = dot + 1;
   }
   packet.push_back(0);
-  push_u16(packet, static_cast<uint16_t>(type));
-  push_u16(packet, 1);
+  write_be16(packet, static_cast<uint16_t>(type));
+  write_be16(packet, 1);
   return packet;
 }
 std::vector<DnsRecord> parse_response(std::span<const std::uint8_t> packet) {
   if (packet.size() < 12) {
     throw std::runtime_error("dns response too short");
   }
-  const auto qdcount = read_u16(packet, 4);
-  const auto ancount = read_u16(packet, 6);
+  const auto qdcount = read_be16(packet, 4);
+  const auto ancount = read_be16(packet, 6);
   std::size_t offset = 12;
   for (std::uint16_t i = 0; i < qdcount; ++i) {
     skip_question(packet, offset);
@@ -188,10 +172,10 @@ std::vector<DnsRecord> parse_response(std::span<const std::uint8_t> packet) {
   std::vector<DnsRecord> records;
   for (std::uint16_t i = 0; i < ancount; ++i) {
     auto name = read_name(packet, offset);
-    const auto type_raw = read_u16(packet, offset);
-    const auto klass = read_u16(packet, offset + 2);
-    const auto ttl = read_u32(packet, offset + 4);
-    const auto rdlength = read_u16(packet, offset + 8);
+    const auto type_raw = read_be16(packet, offset);
+    const auto klass = read_be16(packet, offset + 2);
+    const auto ttl = read_be32(packet, offset + 4);
+    const auto rdlength = read_be16(packet, offset + 8);
     offset += 10;
     if (offset + rdlength > packet.size()) {
       throw std::runtime_error("truncated dns rdata");

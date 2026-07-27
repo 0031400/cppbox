@@ -16,10 +16,10 @@ public:
 
 private:
   asio::awaitable<void> handle_request(Bytes request,
-                                       asio::ip::udp::endpoint client);
+                                       udp::endpoint client);
 
-  asio::ip::udp::endpoint endpoint_;
-  asio::ip::udp::socket socket_;
+  udp::endpoint endpoint_;
+  udp::socket socket_;
   DnsServer &dns_server_;
   std::atomic_bool stopping_{false};
 };

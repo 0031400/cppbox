@@ -1,6 +1,5 @@
 #include "config/config.hpp"
 #include "core/log.hpp"
-#include "core/session.hpp"
 #include "core/shutdown.hpp"
 #include "dns/dns.hpp"
 #include "dns/dns_inbound.hpp"
@@ -17,12 +16,6 @@
 #include "platform/windows_proxy.hpp"
 #include "protocol/vless.hpp"
 #include "route/router.hpp"
-#include <boost/asio/awaitable.hpp>
-#include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/address.hpp>
-#include <boost/asio/use_future.hpp>
 #include <exception>
 #include <iostream>
 #include <memory>

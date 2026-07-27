@@ -4,23 +4,16 @@
 
 #include "core/log.hpp"
 
+#include "core/address.hpp"
 #include <boost/asio/ip/address_v4.hpp>
 #include <cstring>
 #include <iphlpapi.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+
 namespace sbox {
 namespace {
-
-std::uint32_t ipv4_to_net_order_u32(const std::string &text) {
-  auto addr = boost::asio::ip::make_address_v4(text);
-  auto bytes = addr.to_bytes();
-
-  std::uint32_t value{};
-  std::memcpy(&value, bytes.data(), sizeof(value));
-  return value;
-}
 
 bool ok_or_exists(DWORD error) {
   return error == NO_ERROR || error == ERROR_OBJECT_ALREADY_EXISTS;
@@ -98,7 +91,8 @@ bool add_default_route(const NET_LUID &luid, const std::string &tun_next_ip) {
   return true;
 }
 
-bool delete_default_route(const NET_LUID &luid, const std::string &tun_next_ip) {
+bool delete_default_route(const NET_LUID &luid,
+                          const std::string &tun_next_ip) {
   MIB_IPFORWARD_ROW2 row{};
   InitializeIpForwardEntry(&row);
 

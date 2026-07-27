@@ -4,7 +4,7 @@ namespace sbox {
 class Inbound {
 public:
   virtual ~Inbound() = default;
-  virtual boost::asio::awaitable<void> start() = 0;
+  virtual asio::awaitable<void> start() = 0;
   virtual void stop() noexcept = 0;
 
 };
