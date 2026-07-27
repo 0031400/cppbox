@@ -24,106 +24,8 @@
 namespace sbox {
 namespace {
 
-class PlainTcpStream final : public Stream {
-public:
-  explicit PlainTcpStream(tcp::socket socket) : socket_(std::move(socket)) {}
-
-  asio::awaitable<std::vector<unsigned char>> read() override {
-    std::array<unsigned char, 16 * 1024> buffer{};
-    error_code ec;
-
-    auto n = co_await socket_.async_read_some(
-        asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_stream_closed(ec)) {
-      co_return std::vector<unsigned char>{};
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-
-    co_return std::vector<unsigned char>(buffer.begin(), buffer.begin() + n);
-  }
-
-  asio::awaitable<void>
-  write(const std::vector<unsigned char> &bytes) override {
-    error_code ec;
-
-    co_await asio::async_write(socket_, asio::buffer(bytes),
-                               asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_stream_closed(ec)) {
-      co_return;
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-  }
-
-  void close() override {
-    error_code ignored;
-    socket_.cancel(ignored);
-    socket_.shutdown(tcp::socket::shutdown_both, ignored);
-    socket_.close(ignored);
-  }
-
-private:
-  tcp::socket socket_;
-};
-
-class TlsTcpStream final : public Stream {
-public:
-  using Socket = beast::ssl_stream<tcp::socket>;
-
-  explicit TlsTcpStream(Socket stream) : stream_(std::move(stream)) {}
-
-  asio::awaitable<std::vector<unsigned char>> read() override {
-    std::array<unsigned char, 16 * 1024> buffer{};
-    error_code ec;
-
-    auto n = co_await stream_.async_read_some(
-        asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_stream_closed(ec)) {
-      co_return std::vector<unsigned char>{};
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-
-    co_return std::vector<unsigned char>(buffer.begin(), buffer.begin() + n);
-  }
-
-  asio::awaitable<void>
-  write(const std::vector<unsigned char> &bytes) override {
-    error_code ec;
-
-    co_await asio::async_write(stream_, asio::buffer(bytes),
-                               asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_stream_closed(ec)) {
-      co_return;
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-  }
-
-  void close() override {
-    error_code ignored;
-    auto &socket = beast::get_lowest_layer(stream_);
-    socket.cancel(ignored);
-    socket.shutdown(tcp::socket::shutdown_both, ignored);
-    socket.close(ignored);
-  }
-
-private:
-  Socket stream_;
-};
+using PlainTcpStream = TcpStreamImpl<tcp::socket>;
+using TlsTcpStream = TcpStreamImpl<beast::ssl_stream<tcp::socket>>;
 
 } // namespace
 TcpClient::TcpClient(asio::io_context &io, TcpClientConfig config,
@@ -147,7 +49,8 @@ asio::awaitable<std::unique_ptr<Stream>> TcpClient::connect() {
     co_return std::make_unique<PlainTcpStream>(std::move(socket));
   }
 
-  TlsTcpStream::Socket stream(co_await asio::this_coro::executor, ssl_context_);
+  beast::ssl_stream<tcp::socket> stream(co_await asio::this_coro::executor,
+                                        ssl_context_);
   co_await connector_.connect(beast::get_lowest_layer(stream), config_.server);
   tls::configure_server_identity(stream, config_.tls.server_name,
                                  config_.tls.insecure);

@@ -20,116 +20,9 @@
 
 namespace sbox {
 namespace {
-
-class PlainWsStream final : public Stream {
-public:
-  explicit PlainWsStream(websocket::stream<tcp::socket> ws)
-      : ws_(std::move(ws)) {
-    ws_.binary(true);
-  }
-
-  asio::awaitable<std::vector<unsigned char>> read() override {
-    beast::flat_buffer buffer;
-    error_code ec;
-
-    co_await ws_.async_read(buffer,
-                            asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_websocket_closed(ec)) {
-      co_return std::vector<unsigned char>{};
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-
-    std::vector<unsigned char> bytes(buffer.size());
-    asio::buffer_copy(asio::buffer(bytes), buffer.data());
-    co_return bytes;
-  }
-
-  asio::awaitable<void>
-  write(const std::vector<unsigned char> &bytes) override {
-    error_code ec;
-
-    co_await ws_.async_write(asio::buffer(bytes),
-                             asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_websocket_closed(ec)) {
-      co_return;
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-  }
-
-  void close() override {
-    error_code ignored;
-    auto &socket = beast::get_lowest_layer(ws_);
-    socket.cancel(ignored);
-    socket.shutdown(tcp::socket::shutdown_both, ignored);
-    socket.close(ignored);
-  }
-
-private:
-  websocket::stream<tcp::socket> ws_;
-};
-
-class TlsWsStream final : public Stream {
-public:
-  using Socket = websocket::stream<beast::ssl_stream<tcp::socket>>;
-
-  explicit TlsWsStream(Socket ws) : ws_(std::move(ws)) { ws_.binary(true); }
-
-  asio::awaitable<std::vector<unsigned char>> read() override {
-    beast::flat_buffer buffer;
-    error_code ec;
-
-    co_await ws_.async_read(buffer,
-                            asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_websocket_closed(ec)) {
-      co_return std::vector<unsigned char>{};
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-
-    std::vector<unsigned char> bytes(buffer.size());
-    asio::buffer_copy(asio::buffer(bytes), buffer.data());
-    co_return bytes;
-  }
-
-  asio::awaitable<void>
-  write(const std::vector<unsigned char> &bytes) override {
-    error_code ec;
-
-    co_await ws_.async_write(asio::buffer(bytes),
-                             asio::redirect_error(asio::use_awaitable, ec));
-
-    if (is_websocket_closed(ec)) {
-      co_return;
-    }
-
-    if (ec) {
-      throw boost::system::system_error(ec);
-    }
-  }
-
-  void close() override {
-    error_code ignored;
-    auto &socket = beast::get_lowest_layer(ws_);
-    socket.cancel(ignored);
-    socket.shutdown(tcp::socket::shutdown_both, ignored);
-    socket.close(ignored);
-  }
-
-private:
-  Socket ws_;
-};
-
+using PlainWsStream = WsStreamImpl<websocket::stream<tcp::socket>>;
+using TlsWsSocket = websocket::stream<beast::ssl_stream<tcp::socket>>;
+using TlsWsStream = WsStreamImpl<TlsWsSocket>;
 } // namespace
 
 WsClient::WsClient(asio::io_context &io, WsClientConfig config,
@@ -165,8 +58,7 @@ asio::awaitable<std::unique_ptr<Stream>> WsClient::connect() {
 
     co_return std::make_unique<PlainWsStream>(std::move(ws));
   }
-
-  TlsWsStream::Socket ws(co_await asio::this_coro::executor, ssl_context_);
+  TlsWsSocket ws(co_await asio::this_coro::executor, ssl_context_);
 
   co_await connector_.connect(beast::get_lowest_layer(ws), config_.server);
 

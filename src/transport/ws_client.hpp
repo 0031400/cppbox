@@ -14,7 +14,6 @@
 #include <boost/beast/websocket.hpp>
 #include <memory>
 #include <string>
-
 namespace sbox {
 
 struct WsClientConfig {
