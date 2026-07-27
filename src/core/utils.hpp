@@ -3,105 +3,28 @@
 #include "core/net.hpp"
 
 #include <array>
-#include <cctype>
 #include <cstdint>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace sbox {
 
-inline void require(bool ok, std::string_view message) {
-  if (!ok) {
-    throw std::runtime_error(std::string(message));
-  }
-}
+void require(bool ok, std::string_view message);
+std::uint16_t read_be16(const unsigned char *p);
+std::uint16_t read_be16(std::span<const std::uint8_t> data, std::size_t offset,
+                        std::string_view message = "truncated packet");
 
-inline std::uint16_t read_be16(const unsigned char *p) {
-  return static_cast<std::uint16_t>((static_cast<std::uint16_t>(p[0]) << 8) |
-                                    static_cast<std::uint16_t>(p[1]));
-}
+std::uint32_t read_be32(std::span<const std::uint8_t> data, std::size_t offset,
+                        std::string_view message = "truncated packet");
 
-inline std::uint16_t read_be16(std::span<const std::uint8_t> data,
-                               std::size_t offset,
-                               std::string_view message = "truncated packet") {
-  require(offset <= data.size() && 2 <= data.size() - offset, message);
-  return static_cast<std::uint16_t>(
-      (static_cast<std::uint16_t>(data[offset]) << 8) |
-      static_cast<std::uint16_t>(data[offset + 1]));
-}
+void write_be16(unsigned char *p, std::uint16_t value);
+void write_be16(std::vector<unsigned char> &out, std::uint16_t value);
+int hex_value(char c);
 
-inline std::uint32_t read_be32(std::span<const std::uint8_t> data,
-                               std::size_t offset,
-                               std::string_view message = "truncated packet") {
-  require(offset <= data.size() && 4 <= data.size() - offset, message);
-  return (static_cast<std::uint32_t>(data[offset]) << 24) |
-         (static_cast<std::uint32_t>(data[offset + 1]) << 16) |
-         (static_cast<std::uint32_t>(data[offset + 2]) << 8) |
-         static_cast<std::uint32_t>(data[offset + 3]);
-}
-
-inline void write_be16(unsigned char *p, std::uint16_t value) {
-  p[0] = static_cast<unsigned char>((value >> 8) & 0xff);
-  p[1] = static_cast<unsigned char>(value & 0xff);
-}
-
-inline void write_be16(std::vector<unsigned char> &out, std::uint16_t value) {
-  out.push_back(static_cast<unsigned char>((value >> 8) & 0xff));
-  out.push_back(static_cast<unsigned char>(value & 0xff));
-}
-
-inline int hex_value(char c) {
-  if (c >= '0' && c <= '9') {
-    return c - '0';
-  }
-  c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  if (c >= 'a' && c <= 'f') {
-    return c - 'a' + 10;
-  }
-  return -1;
-}
-
-inline std::array<unsigned char, 16> parse_uuid(std::string_view uuid) {
-  std::string hex;
-  hex.reserve(32);
-
-  for (char c : uuid) {
-    if (c == '-') {
-      continue;
-    }
-    require(hex_value(c) >= 0, "invalid uuid character");
-    hex.push_back(c);
-  }
-
-  require(hex.size() == 32, "uuid must contain 32 hex digits");
-
-  std::array<unsigned char, 16> bytes{};
-  for (std::size_t i = 0; i < bytes.size(); ++i) {
-    int hi = hex_value(hex[i * 2]);
-    int lo = hex_value(hex[i * 2 + 1]);
-    bytes[i] = static_cast<unsigned char>((hi << 4) | lo);
-  }
-
-  return bytes;
-}
-
-inline std::string bytes_to_string(asio::const_buffer buffer) {
-  const auto *p = static_cast<const char *>(buffer.data());
-  return {p, p + buffer.size()};
-}
-
-inline void close_socket(tcp::socket &socket) {
-  error_code ignored;
-  if (!socket.is_open()) {
-    return;
-  }
-
-  socket.cancel(ignored);
-  socket.shutdown(tcp::socket::shutdown_both, ignored);
-  socket.close(ignored);
-}
+std::array<unsigned char, 16> parse_uuid(std::string_view uuid);
+std::string bytes_to_string(asio::const_buffer buffer);
+void close_socket(tcp::socket &socket);
 
 } // namespace sbox

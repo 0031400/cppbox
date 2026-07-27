@@ -13,6 +13,7 @@ add_executable(sbox
     src/core/log.cpp
     src/core/shutdown.cpp
     src/core/tls.cpp
+    src/core/utils.cpp
     src/dns/dns.cpp
     src/dns/dns_inbound.cpp
     src/dns/dns_message.cpp
