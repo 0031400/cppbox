@@ -56,6 +56,8 @@ void TunNat::erase(std::uint16_t nat_port) {
   forward_.erase(TunFlowKey{
       .src_ip = it->second.source_ip,
       .src_port = it->second.source_port,
+      .dst_ip = it->second.dest_ip,
+      .dst_port = it->second.dest_port,
   });
   reverse_.erase(it);
 }
