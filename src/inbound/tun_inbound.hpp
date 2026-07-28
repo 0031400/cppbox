@@ -7,12 +7,16 @@
 #include "inbound/tun_nat.hpp"
 #include "inbound/tun_wintun.hpp"
 
+#include "transport/connector.hpp"
 #include <atomic>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <thread>
 
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 namespace cppbox {
 
 struct TunInboundConfig {
@@ -24,7 +28,8 @@ class TunInbound : public Inbound {
 public:
   using Handler = std::function<asio::awaitable<void>(tcp::socket, Session)>;
 
-  TunInbound(asio::io_context &io, TunInboundConfig config, Handler handler);
+  TunInbound(asio::io_context &io, TunInboundConfig config, Handler handler,
+             Connector &connector);
   ~TunInbound() override;
 
   TunInbound(const TunInbound &) = delete;
@@ -55,6 +60,17 @@ private:
   std::uint32_t tun_ip_{};
   std::uint32_t tun_next_ip_{};
   std::uint16_t tcp_listen_port_{};
+  struct TunUdpFlow;
+
+  bool process_udp_packet(std::uint8_t *packet, std::uint32_t size);
+  void erase_udp_flow(std::uint16_t nat_port);
+  void write_udp_response(const TunNatSession &session,
+                          const std::uint8_t *data, std::size_t size);
+  Connector &connector_;
+  TunNat udp_nat_;
+  std::mutex udp_mutex_;
+  std::mutex wintun_write_mutex_;
+  std::unordered_map<std::uint16_t, std::shared_ptr<TunUdpFlow>> udp_flows_;
 };
 
 } // namespace cppbox

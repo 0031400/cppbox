@@ -33,7 +33,8 @@ int main() {
     cppbox::DnsServer dnsServer(config.dns, router);
     cppbox::Connector connector(dnsServer);
     dnsServer.set_connector(connector);
-    std::unordered_map<std::string, std::shared_ptr<cppbox::Outbound>> outbounds;
+    std::unordered_map<std::string, std::shared_ptr<cppbox::Outbound>>
+        outbounds;
     std::shared_ptr<cppbox::Inbound> tun_inbound;
 
     for (const auto &item : config.outbounds) {
@@ -61,8 +62,9 @@ int main() {
     }
 
     std::unordered_map<std::string, std::shared_ptr<cppbox::Inbound>> inbounds;
-    auto handler = [&](cppbox::tcp::socket socket,
-                       cppbox::Session session) -> boost::asio::awaitable<void> {
+    auto handler =
+        [&](cppbox::tcp::socket socket,
+            cppbox::Session session) -> boost::asio::awaitable<void> {
       auto tag = router.pick_outbound(session);
       std::cout << "[route] " << session.destination.to_string() << " -> "
                 << tag << std::endl;
@@ -84,14 +86,14 @@ int main() {
 
       connector.set_outbound_interface_index(*outbound_index);
       cppbox::log_info("tun outbound interface index: " +
-                     std::to_string(*outbound_index));
+                       std::to_string(*outbound_index));
       tun_inbound = std::make_shared<cppbox::TunInbound>(
           io,
           cppbox::TunInboundConfig{
               .tun_ip = config.tun.tun_ip,
               .tun_next_ip = config.tun.tun_next_ip,
           },
-          handler);
+          handler, connector);
       boost::asio::co_spawn(io, tun_inbound->start(), boost::asio::detached);
       inbounds["tun"] = tun_inbound;
       cppbox::log_info("cppbox tun inbound enabled: " + config.tun.tun_ip);
@@ -104,7 +106,8 @@ int main() {
       if (inbound_config.type == "mixed") {
         inbound = std::make_shared<cppbox::MixedInbound>(io, endpoint, handler);
       } else if (inbound_config.type == "socks5") {
-        inbound = std::make_shared<cppbox::Socks5Inbound>(io, endpoint, handler);
+        inbound =
+            std::make_shared<cppbox::Socks5Inbound>(io, endpoint, handler);
       } else if (inbound_config.type == "http") {
         inbound = std::make_shared<cppbox::HttpInbound>(io, endpoint, handler);
       } else {
@@ -118,8 +121,8 @@ int main() {
       inbounds[inbound_config.tag] = inbound;
     }
     if (config.dns.listen) {
-      auto dns_inbound =
-          std::make_shared<cppbox::DnsInbound>(io, *config.dns.listen, dnsServer);
+      auto dns_inbound = std::make_shared<cppbox::DnsInbound>(
+          io, *config.dns.listen, dnsServer);
 
       inbounds["dns"] = dns_inbound;
       boost::asio::co_spawn(io, dns_inbound->start(), boost::asio::detached);
@@ -134,15 +137,16 @@ int main() {
 #ifdef _WIN32
     if (config.windows_proxy.enabled) {
       cppbox::setWindowsProxy(config.windows_proxy.addr,
-                            config.windows_proxy.port);
+                              config.windows_proxy.port);
 
       shutdown.on_stop([] {
         cppbox::unsetWindowsProxy();
         cppbox::log_info("unset windows proxy");
       });
 
-      cppbox::log_info("set windows proxy: http://" + config.windows_proxy.addr +
-                     ":" + std::to_string(config.windows_proxy.port));
+      cppbox::log_info("set windows proxy: http://" +
+                       config.windows_proxy.addr + ":" +
+                       std::to_string(config.windows_proxy.port));
     }
 #else
     if (config.windows_proxy.enabled) {

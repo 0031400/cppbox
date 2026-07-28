@@ -56,5 +56,28 @@ void recalc_tcp_checksum(std::uint8_t *ip, std::uint8_t *tcp,
   tcp[16] = static_cast<std::uint8_t>(value >> 8);
   tcp[17] = static_cast<std::uint8_t>(value);
 }
+void recalc_udp_checksum(std::uint8_t *ip, std::uint8_t *udp,
+                         std::size_t udp_len) {
+  udp[6] = 0;
+  udp[7] = 0;
 
+  std::vector<std::uint8_t> pseudo;
+  pseudo.reserve(12 + udp_len);
+
+  pseudo.insert(pseudo.end(), ip + 12, ip + 20);
+  pseudo.push_back(0);
+  pseudo.push_back(17);
+  pseudo.push_back(static_cast<std::uint8_t>(udp_len >> 8));
+  pseudo.push_back(static_cast<std::uint8_t>(udp_len));
+
+  pseudo.insert(pseudo.end(), udp, udp + udp_len);
+
+  auto value = checksum(pseudo);
+  if (value == 0) {
+    value = 0xffff;
+  }
+
+  udp[6] = static_cast<std::uint8_t>(value >> 8);
+  udp[7] = static_cast<std::uint8_t>(value);
+}
 } // namespace cppbox
