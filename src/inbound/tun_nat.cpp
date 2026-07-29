@@ -36,12 +36,7 @@ std::uint16_t TunNat::lookup_or_create(std::uint32_t src_ip,
 
   const auto nat_port = next_port_++;
   forward_[key] = nat_port;
-  reverse_[nat_port] = TunNatSession{
-      .source_ip = src_ip,
-      .source_port = src_port,
-      .dest_ip = dst_ip,
-      .dest_port = dst_port,
-  };
+  reverse_[nat_port] = key;
 
   return nat_port;
 }
@@ -53,15 +48,10 @@ void TunNat::erase(std::uint16_t nat_port) {
     return;
   }
 
-  forward_.erase(TunFlowKey{
-      .src_ip = it->second.source_ip,
-      .src_port = it->second.source_port,
-      .dst_ip = it->second.dest_ip,
-      .dst_port = it->second.dest_port,
-  });
+  forward_.erase(it->second);
   reverse_.erase(it);
 }
-std::optional<TunNatSession> TunNat::lookup_back(std::uint16_t nat_port) {
+std::optional<TunFlowKey> TunNat::lookup_back(std::uint16_t nat_port) {
   std::lock_guard lock(mutex_);
 
   if (auto it = reverse_.find(nat_port); it != reverse_.end()) {

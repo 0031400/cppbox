@@ -143,8 +143,8 @@ asio::awaitable<void> TunInbound::handle_client(tcp::socket socket) {
   Session session{
       .destination =
           Destination{
-              .host = Host::ipv4(ipv4_to_string(nat_session->dest_ip)),
-              .port = nat_session->dest_port,
+              .host = Host::ipv4(ipv4_to_string(nat_session->dst_ip)),
+              .port = nat_session->dst_port,
           },
   };
 
@@ -246,13 +246,13 @@ bool TunInbound::handle_tcp_from_local_relay(std::uint8_t *packet,
     return false;
   }
 
-  std::memcpy(packet + 12, &nat_session->dest_ip,
-              sizeof(nat_session->dest_ip));
-  std::memcpy(packet + 16, &nat_session->source_ip,
-              sizeof(nat_session->source_ip));
+  std::memcpy(packet + 12, &nat_session->dst_ip,
+              sizeof(nat_session->dst_ip));
+  std::memcpy(packet + 16, &nat_session->src_ip,
+              sizeof(nat_session->src_ip));
 
-  write_be16(tcp, nat_session->dest_port);
-  write_be16(tcp + 2, nat_session->source_port);
+  write_be16(tcp, nat_session->dst_port);
+  write_be16(tcp + 2, nat_session->src_port);
 
   recalc_ipv4_checksum(packet);
   recalc_tcp_checksum(packet, tcp, tcp_len);
@@ -281,7 +281,7 @@ bool TunInbound::handle_tcp_from_stack(std::uint8_t *packet, std::uint8_t *tcp,
 
 struct TunInbound::TunUdpFlow
     : public std::enable_shared_from_this<TunUdpFlow> {
-  TunUdpFlow(TunInbound &owner, std::uint16_t nat_port, TunNatSession session)
+  TunUdpFlow(TunInbound &owner, std::uint16_t nat_port, TunFlowKey  session)
       : owner(owner), nat_port(nat_port), session(session), socket(owner.io_) {}
 
   void enqueue(std::vector<std::uint8_t> payload) {
@@ -312,8 +312,8 @@ struct TunInbound::TunUdpFlow
   asio::awaitable<void> start() {
     try {
       Destination destination{
-          .host = Host::ipv4(ipv4_to_string(session.dest_ip)),
-          .port = session.dest_port,
+          .host = Host::ipv4(ipv4_to_string(session.dst_ip)),
+          .port = session.dst_port,
       };
 
       co_await owner.connector_.connect(socket, destination);
@@ -408,7 +408,7 @@ struct TunInbound::TunUdpFlow
 
   TunInbound &owner;
   std::uint16_t nat_port{};
-  TunNatSession session;
+  TunFlowKey  session;
   udp::socket socket;
   std::mutex mutex;
   std::deque<std::vector<std::uint8_t>> pending;
@@ -478,7 +478,7 @@ bool TunInbound::handle_udp_packet(std::uint8_t *packet, std::uint32_t size) {
   return false;
 }
 
-void TunInbound::write_udp_response(const TunNatSession &session,
+void TunInbound::write_udp_response(const TunFlowKey  &session,
                                     const std::uint8_t *data,
                                     std::size_t size) {
   const auto ip_header_len = 20u;
@@ -498,13 +498,13 @@ void TunInbound::write_udp_response(const TunNatSession &session,
   write_be16(packet.data() + 2, static_cast<std::uint16_t>(total_len));
   write_be16(packet.data() + 6, 0x4000);
 
-  std::memcpy(packet.data() + 12, &session.dest_ip, sizeof(session.dest_ip));
-  std::memcpy(packet.data() + 16, &session.source_ip,
-              sizeof(session.source_ip));
+  std::memcpy(packet.data() + 12, &session.dst_ip, sizeof(session.dst_ip));
+  std::memcpy(packet.data() + 16, &session.src_ip,
+              sizeof(session.src_ip));
 
   auto *udp_header = packet.data() + ip_header_len;
-  write_be16(udp_header, session.dest_port);
-  write_be16(udp_header + 2, session.source_port);
+  write_be16(udp_header, session.dst_port);
+  write_be16(udp_header + 2, session.src_port);
   write_be16(udp_header + 4, static_cast<std::uint16_t>(udp_len));
 
   std::memcpy(udp_header + udp_header_len, data, size);

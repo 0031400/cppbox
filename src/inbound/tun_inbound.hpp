@@ -57,7 +57,7 @@ private:
                              std::uint16_t dst_port);
 
   bool handle_udp_packet(std::uint8_t *packet, std::uint32_t size);
-  void write_udp_response(const TunNatSession &session, const std::uint8_t *data,
+  void write_udp_response(const TunFlowKey  &session, const std::uint8_t *data,
                           std::size_t size);
   void erase_udp_flow(std::uint16_t nat_port);
 
