@@ -11,6 +11,7 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/ip/address_v4.hpp>
+#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/use_awaitable.hpp>
 #include <cstring>
 #include <deque>
@@ -33,6 +34,7 @@ constexpr std::uint8_t udp_protocol = 17;
 bool is_ipv4_packet(const std::uint8_t *packet, std::uint32_t size) {
   return size >= 20 && (packet[0] >> 4) == 4;
 }
+
 std::string ipv4_to_string(std::uint32_t value) {
   return address_v4_from_net_order_u32(value).to_string();
 }
@@ -42,12 +44,11 @@ std::string ipv4_to_string(std::uint32_t value) {
 TunInbound::TunInbound(asio::io_context &io, TunInboundConfig config,
                        Handler handler, Connector &connector)
     : io_(io), config_(std::move(config)), handler_(std::move(handler)),
-      acceptor_(io), connector_(connector) {}
+      connector_(connector), acceptor_(io) {}
 
 TunInbound::~TunInbound() { stop(); }
 
 asio::awaitable<void> TunInbound::start() {
-
   tun_ip_ = ipv4_to_net_order_u32(config_.tun_ip);
   tun_next_ip_ = ipv4_to_net_order_u32(config_.tun_next_ip);
 
@@ -66,10 +67,13 @@ asio::awaitable<void> TunInbound::start() {
   if (!wintun_.adapter_luid(luid_)) {
     throw std::runtime_error("failed to get wintun adapter luid");
   }
+
   if (!configure_tun_routes(luid_, config_.tun_ip, config_.tun_next_ip)) {
     throw std::runtime_error("failed to configure tun routes");
   }
+
   routes_configured_ = true;
+
   boost::system::error_code ec;
   tcp::endpoint endpoint(address_v4_from_net_order_u32(tun_ip_), 0);
 
@@ -129,9 +133,9 @@ asio::awaitable<void> TunInbound::handle_client(tcp::socket socket) {
   }
 
   const auto nat_port = peer.port();
-  auto nat_session = nat_.lookup_back(nat_port);
+  auto nat_session = tcp_nat_.lookup_back(nat_port);
   if (!nat_session) {
-    log_error("[tun] unknown nat port: " + std::to_string(nat_port));
+    log_error("[tun] unknown tcp nat port: " + std::to_string(nat_port));
     close_socket(socket);
     co_return;
   }
@@ -149,7 +153,8 @@ asio::awaitable<void> TunInbound::handle_client(tcp::socket socket) {
   } catch (const std::exception &e) {
     log_error(std::string("[tun] handler failed: ") + e.what());
   }
-  nat_.erase(nat_port);
+
+  tcp_nat_.erase(nat_port);
 }
 
 void TunInbound::packet_loop() {
@@ -157,15 +162,11 @@ void TunInbound::packet_loop() {
     TunPacket packet = wintun_.receive();
 
     if (packet.data) {
-      if (is_ipv4_packet(packet.data, packet.size)) {
-        if (packet.data[9] == tcp_protocol) {
-          if (process_tcp_packet(packet.data, packet.size)) {
-            wintun_.write(packet.data, packet.size);
-          }
-        } else if (packet.data[9] == udp_protocol) {
-          process_udp_packet(packet.data, packet.size);
-        }
+      if (handle_ipv4_packet(packet.data, packet.size)) {
+        std::lock_guard lock(wintun_write_mutex_);
+        wintun_.write(packet.data, packet.size);
       }
+
       wintun_.release(packet);
       continue;
     }
@@ -186,16 +187,24 @@ void TunInbound::packet_loop() {
   }
 }
 
-bool TunInbound::process_tcp_packet(std::uint8_t *packet, std::uint32_t size) {
-  if (size < 20) {
+bool TunInbound::handle_ipv4_packet(std::uint8_t *packet, std::uint32_t size) {
+  if (!is_ipv4_packet(packet, size)) {
     return false;
   }
 
-  if ((packet[0] >> 4) != 4) {
-    return false;
+  if (packet[9] == tcp_protocol) {
+    return handle_tcp_packet(packet, size);
   }
 
-  if (packet[9] != tcp_protocol) {
+  if (packet[9] == udp_protocol) {
+    return handle_udp_packet(packet, size);
+  }
+
+  return false;
+}
+
+bool TunInbound::handle_tcp_packet(std::uint8_t *packet, std::uint32_t size) {
+  if (size < 20 || (packet[0] >> 4) != 4 || packet[9] != tcp_protocol) {
     return false;
   }
 
@@ -221,28 +230,49 @@ bool TunInbound::process_tcp_packet(std::uint8_t *packet, std::uint32_t size) {
   const auto dst_port = read_be16(tcp + 2);
 
   if (src_ip == tun_ip_ && src_port == tcp_listen_port_) {
-    auto nat_session = nat_.lookup_back(dst_port);
-    if (!nat_session) {
-      return false;
-    }
-
-    std::memcpy(packet + 12, &nat_session->dest_ip,
-                sizeof(nat_session->dest_ip));
-    std::memcpy(packet + 16, &nat_session->source_ip,
-                sizeof(nat_session->source_ip));
-
-    write_be16(tcp, nat_session->dest_port);
-    write_be16(tcp + 2, nat_session->source_port);
-  } else {
-    const auto nat_port =
-        nat_.lookup_or_create(src_ip, src_port, dst_ip, dst_port);
-
-    std::memcpy(packet + 12, &tun_next_ip_, sizeof(tun_next_ip_));
-    std::memcpy(packet + 16, &tun_ip_, sizeof(tun_ip_));
-
-    write_be16(tcp, nat_port);
-    write_be16(tcp + 2, tcp_listen_port_);
+    return handle_tcp_from_local_relay(packet, tcp, tcp_len, dst_port);
   }
+
+  return handle_tcp_from_stack(packet, tcp, tcp_len, src_ip, src_port, dst_ip,
+                               dst_port);
+}
+
+bool TunInbound::handle_tcp_from_local_relay(std::uint8_t *packet,
+                                             std::uint8_t *tcp,
+                                             std::size_t tcp_len,
+                                             std::uint16_t nat_port) {
+  auto nat_session = tcp_nat_.lookup_back(nat_port);
+  if (!nat_session) {
+    return false;
+  }
+
+  std::memcpy(packet + 12, &nat_session->dest_ip,
+              sizeof(nat_session->dest_ip));
+  std::memcpy(packet + 16, &nat_session->source_ip,
+              sizeof(nat_session->source_ip));
+
+  write_be16(tcp, nat_session->dest_port);
+  write_be16(tcp + 2, nat_session->source_port);
+
+  recalc_ipv4_checksum(packet);
+  recalc_tcp_checksum(packet, tcp, tcp_len);
+  return true;
+}
+
+bool TunInbound::handle_tcp_from_stack(std::uint8_t *packet, std::uint8_t *tcp,
+                                       std::size_t tcp_len,
+                                       std::uint32_t src_ip,
+                                       std::uint16_t src_port,
+                                       std::uint32_t dst_ip,
+                                       std::uint16_t dst_port) {
+  const auto nat_port =
+      tcp_nat_.lookup_or_create(src_ip, src_port, dst_ip, dst_port);
+
+  std::memcpy(packet + 12, &tun_next_ip_, sizeof(tun_next_ip_));
+  std::memcpy(packet + 16, &tun_ip_, sizeof(tun_ip_));
+
+  write_be16(tcp, nat_port);
+  write_be16(tcp + 2, tcp_listen_port_);
 
   recalc_ipv4_checksum(packet);
   recalc_tcp_checksum(packet, tcp, tcp_len);
@@ -289,7 +319,6 @@ struct TunInbound::TunUdpFlow
       co_await owner.connector_.connect(socket, destination);
 
       bool should_send = false;
-
       {
         std::lock_guard lock(mutex);
         connected = true;
@@ -312,6 +341,7 @@ struct TunInbound::TunUdpFlow
       owner.erase_udp_flow(nat_port);
     }
   }
+
   asio::awaitable<void> send_loop() {
     try {
       for (;;) {
@@ -386,60 +416,9 @@ struct TunInbound::TunUdpFlow
   bool connected{false};
   bool sending{false};
 };
-void TunInbound::write_udp_response(const TunNatSession &session,
-                                    const std::uint8_t *data,
-                                    std::size_t size) {
-  const auto ip_header_len = 20u;
-  const auto udp_header_len = 8u;
-  const auto udp_len = udp_header_len + size;
-  const auto total_len = ip_header_len + udp_len;
 
-  if (total_len > 65535) {
-    return;
-  }
-
-  std::vector<std::uint8_t> packet(total_len);
-  packet[0] = 0x45;
-  packet[8] = 64;
-  packet[9] = udp_protocol;
-
-  write_be16(packet.data() + 2, static_cast<std::uint16_t>(total_len));
-  write_be16(packet.data() + 6, 0x4000);
-
-  std::memcpy(packet.data() + 12, &session.dest_ip, sizeof(session.dest_ip));
-  std::memcpy(packet.data() + 16, &session.source_ip,
-              sizeof(session.source_ip));
-
-  auto *udp_header = packet.data() + ip_header_len;
-  write_be16(udp_header, session.dest_port);
-  write_be16(udp_header + 2, session.source_port);
-  write_be16(udp_header + 4, static_cast<std::uint16_t>(udp_len));
-
-  std::memcpy(udp_header + udp_header_len, data, size);
-
-  recalc_ipv4_checksum(packet.data());
-  recalc_udp_checksum(packet.data(), udp_header, udp_len);
-
-  std::lock_guard lock(wintun_write_mutex_);
-  wintun_.write(packet.data(), static_cast<std::uint32_t>(packet.size()));
-}
-void TunInbound::erase_udp_flow(std::uint16_t nat_port) {
-  std::shared_ptr<TunUdpFlow> flow;
-  {
-    std::lock_guard lock(udp_mutex_);
-    auto it = udp_flows_.find(nat_port);
-    if (it == udp_flows_.end()) {
-      return;
-    }
-    flow = it->second;
-    udp_flows_.erase(it);
-  }
-
-  udp_nat_.erase(nat_port);
-  flow->close();
-}
-bool TunInbound::process_udp_packet(std::uint8_t *packet, std::uint32_t size) {
-  if (size < 20 || (packet[0] >> 4) != 4) {
+bool TunInbound::handle_udp_packet(std::uint8_t *packet, std::uint32_t size) {
+  if (size < 20 || (packet[0] >> 4) != 4 || packet[9] != udp_protocol) {
     return false;
   }
 
@@ -481,7 +460,7 @@ bool TunInbound::process_udp_packet(std::uint8_t *packet, std::uint32_t size) {
 
   std::shared_ptr<TunUdpFlow> flow;
   {
-    std::lock_guard lock(udp_mutex_);
+    std::lock_guard lock(udp_flows_mutex_);
     auto it = udp_flows_.find(nat_port);
     if (it == udp_flows_.end()) {
       flow = std::make_shared<TunUdpFlow>(*this, nat_port, *session);
@@ -495,8 +474,64 @@ bool TunInbound::process_udp_packet(std::uint8_t *packet, std::uint32_t size) {
   std::vector<std::uint8_t> payload(payload_len);
   std::memcpy(payload.data(), udp_header + 8, payload_len);
   flow->enqueue(std::move(payload));
-  return true;
+
+  return false;
 }
+
+void TunInbound::write_udp_response(const TunNatSession &session,
+                                    const std::uint8_t *data,
+                                    std::size_t size) {
+  const auto ip_header_len = 20u;
+  const auto udp_header_len = 8u;
+  const auto udp_len = udp_header_len + size;
+  const auto total_len = ip_header_len + udp_len;
+
+  if (total_len > 65535) {
+    return;
+  }
+
+  std::vector<std::uint8_t> packet(total_len);
+  packet[0] = 0x45;
+  packet[8] = 64;
+  packet[9] = udp_protocol;
+
+  write_be16(packet.data() + 2, static_cast<std::uint16_t>(total_len));
+  write_be16(packet.data() + 6, 0x4000);
+
+  std::memcpy(packet.data() + 12, &session.dest_ip, sizeof(session.dest_ip));
+  std::memcpy(packet.data() + 16, &session.source_ip,
+              sizeof(session.source_ip));
+
+  auto *udp_header = packet.data() + ip_header_len;
+  write_be16(udp_header, session.dest_port);
+  write_be16(udp_header + 2, session.source_port);
+  write_be16(udp_header + 4, static_cast<std::uint16_t>(udp_len));
+
+  std::memcpy(udp_header + udp_header_len, data, size);
+
+  recalc_ipv4_checksum(packet.data());
+  recalc_udp_checksum(packet.data(), udp_header, udp_len);
+
+  std::lock_guard lock(wintun_write_mutex_);
+  wintun_.write(packet.data(), static_cast<std::uint32_t>(packet.size()));
+}
+
+void TunInbound::erase_udp_flow(std::uint16_t nat_port) {
+  std::shared_ptr<TunUdpFlow> flow;
+  {
+    std::lock_guard lock(udp_flows_mutex_);
+    auto it = udp_flows_.find(nat_port);
+    if (it == udp_flows_.end()) {
+      return;
+    }
+    flow = it->second;
+    udp_flows_.erase(it);
+  }
+
+  udp_nat_.erase(nat_port);
+  flow->close();
+}
+
 void TunInbound::stop() noexcept {
   if (stopping_.exchange(true)) {
     return;
@@ -504,10 +539,27 @@ void TunInbound::stop() noexcept {
 
   boost::system::error_code ignored;
   acceptor_.close(ignored);
+
+  {
+    std::vector<std::shared_ptr<TunUdpFlow>> flows;
+    {
+      std::lock_guard lock(udp_flows_mutex_);
+      for (auto &[_, flow] : udp_flows_) {
+        flows.push_back(flow);
+      }
+      udp_flows_.clear();
+    }
+
+    for (auto &flow : flows) {
+      flow->close();
+    }
+  }
+
   if (routes_configured_) {
     cleanup_tun_routes(luid_, config_.tun_ip, config_.tun_next_ip);
     routes_configured_ = false;
   }
+
   if (packet_thread_.joinable()) {
     packet_thread_.join();
   }
