@@ -49,15 +49,14 @@ private:
 
   bool handle_tcp_packet(std::uint8_t *packet, std::uint32_t size);
   bool handle_tcp_from_local_relay(std::uint8_t *packet, std::uint8_t *tcp,
-                                   std::size_t tcp_len,
-                                   std::uint16_t nat_port);
+                                   std::size_t tcp_len, std::uint16_t nat_port);
   bool handle_tcp_from_stack(std::uint8_t *packet, std::uint8_t *tcp,
                              std::size_t tcp_len, std::uint32_t src_ip,
                              std::uint16_t src_port, std::uint32_t dst_ip,
                              std::uint16_t dst_port);
 
   bool handle_udp_packet(std::uint8_t *packet, std::uint32_t size);
-  void write_udp_response(const TunFlowKey  &session, const std::uint8_t *data,
+  void write_udp_response(const TunFlowKey &session, const std::uint8_t *data,
                           std::size_t size);
   void erase_udp_flow(std::uint16_t nat_port);
 
@@ -68,7 +67,7 @@ private:
 
   WintunApi wintun_;
   TunNat tcp_nat_;
-  TunNat udp_nat_;
+  TunNat udp_nat_{1024};
   tcp::acceptor acceptor_;
 
   std::mutex udp_flows_mutex_;

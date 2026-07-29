@@ -246,10 +246,8 @@ bool TunInbound::handle_tcp_from_local_relay(std::uint8_t *packet,
     return false;
   }
 
-  std::memcpy(packet + 12, &nat_session->dst_ip,
-              sizeof(nat_session->dst_ip));
-  std::memcpy(packet + 16, &nat_session->src_ip,
-              sizeof(nat_session->src_ip));
+  std::memcpy(packet + 12, &nat_session->dst_ip, sizeof(nat_session->dst_ip));
+  std::memcpy(packet + 16, &nat_session->src_ip, sizeof(nat_session->src_ip));
 
   write_be16(tcp, nat_session->dst_port);
   write_be16(tcp + 2, nat_session->src_port);
@@ -265,9 +263,9 @@ bool TunInbound::handle_tcp_from_stack(std::uint8_t *packet, std::uint8_t *tcp,
                                        std::uint16_t src_port,
                                        std::uint32_t dst_ip,
                                        std::uint16_t dst_port) {
-  const auto nat_port =
+  const auto nat_result =
       tcp_nat_.lookup_or_create(src_ip, src_port, dst_ip, dst_port);
-
+  const auto nat_port = nat_result.nat_port;
   std::memcpy(packet + 12, &tun_next_ip_, sizeof(tun_next_ip_));
   std::memcpy(packet + 16, &tun_ip_, sizeof(tun_ip_));
 
@@ -281,7 +279,7 @@ bool TunInbound::handle_tcp_from_stack(std::uint8_t *packet, std::uint8_t *tcp,
 
 struct TunInbound::TunUdpFlow
     : public std::enable_shared_from_this<TunUdpFlow> {
-  TunUdpFlow(TunInbound &owner, std::uint16_t nat_port, TunFlowKey  session)
+  TunUdpFlow(TunInbound &owner, std::uint16_t nat_port, TunFlowKey session)
       : owner(owner), nat_port(nat_port), session(session), socket(owner.io_) {}
 
   void enqueue(std::vector<std::uint8_t> payload) {
@@ -303,59 +301,58 @@ struct TunInbound::TunUdpFlow
 
     auto self = shared_from_this();
     if (should_start) {
-      asio::co_spawn(owner.io_, self->start(), asio::detached);
+      asio::co_spawn(owner.io_, TunUdpFlow::start(self), asio::detached);
     } else if (should_send) {
-      asio::co_spawn(owner.io_, self->send_loop(), asio::detached);
+      asio::co_spawn(owner.io_, TunUdpFlow::send_loop(self), asio::detached);
     }
   }
 
-  asio::awaitable<void> start() {
+  static asio::awaitable<void> start(std::shared_ptr<TunUdpFlow> self) {
     try {
       Destination destination{
-          .host = Host::ipv4(ipv4_to_string(session.dst_ip)),
-          .port = session.dst_port,
+          .host = Host::ipv4(ipv4_to_string(self->session.dst_ip)),
+          .port = self->session.dst_port,
       };
 
-      co_await owner.connector_.connect(socket, destination);
+      co_await self->owner.connector_.connect(self->socket, destination);
 
       bool should_send = false;
       {
-        std::lock_guard lock(mutex);
-        connected = true;
-        connecting = false;
-        if (!sending) {
-          sending = true;
+        std::lock_guard lock(self->mutex);
+        self->connected = true;
+        self->connecting = false;
+        if (!self->sending) {
+          self->sending = true;
           should_send = true;
         }
       }
 
       if (should_send) {
-        asio::co_spawn(owner.io_, shared_from_this()->send_loop(),
+        asio::co_spawn(self->owner.io_, TunUdpFlow::send_loop(self),
                        asio::detached);
       }
 
-      asio::co_spawn(owner.io_, shared_from_this()->recv_loop(),
+      asio::co_spawn(self->owner.io_, TunUdpFlow::recv_loop(self),
                      asio::detached);
     } catch (const std::exception &e) {
       log_error(std::string("[tun][udp] connect failed: ") + e.what());
-      owner.erase_udp_flow(nat_port);
+      self->owner.erase_udp_flow(self->nat_port);
     }
   }
-
-  asio::awaitable<void> send_loop() {
+  static asio::awaitable<void> send_loop(std::shared_ptr<TunUdpFlow> self) {
     try {
       for (;;) {
         std::vector<std::uint8_t> payload;
         bool should_return = false;
 
         {
-          std::lock_guard lock(mutex);
-          if (pending.empty()) {
-            sending = false;
+          std::lock_guard lock(self->mutex);
+          if (self->pending.empty()) {
+            self->sending = false;
             should_return = true;
           } else {
-            payload = std::move(pending.front());
-            pending.pop_front();
+            payload = std::move(self->pending.front());
+            self->pending.pop_front();
           }
         }
 
@@ -364,7 +361,7 @@ struct TunInbound::TunUdpFlow
         }
 
         boost::system::error_code ec;
-        co_await socket.async_send(
+        co_await self->socket.async_send(
             asio::buffer(payload),
             asio::redirect_error(asio::use_awaitable, ec));
 
@@ -374,17 +371,17 @@ struct TunInbound::TunUdpFlow
       }
     } catch (const std::exception &e) {
       log_error(std::string("[tun][udp] send failed: ") + e.what());
-      owner.erase_udp_flow(nat_port);
+      self->owner.erase_udp_flow(self->nat_port);
     }
   }
 
-  asio::awaitable<void> recv_loop() {
+  static asio::awaitable<void> recv_loop(std::shared_ptr<TunUdpFlow> self) {
     std::array<std::uint8_t, 65535> buffer{};
 
     try {
       for (;;) {
         boost::system::error_code ec;
-        auto n = co_await socket.async_receive(
+        auto n = co_await self->socket.async_receive(
             asio::buffer(buffer),
             asio::redirect_error(asio::use_awaitable, ec));
 
@@ -392,13 +389,13 @@ struct TunInbound::TunUdpFlow
           break;
         }
 
-        owner.write_udp_response(session, buffer.data(), n);
+        self->owner.write_udp_response(self->session, buffer.data(), n);
       }
     } catch (const std::exception &e) {
       log_error(std::string("[tun][udp] recv failed: ") + e.what());
     }
 
-    owner.erase_udp_flow(nat_port);
+    self->owner.erase_udp_flow(self->nat_port);
   }
 
   void close() {
@@ -408,7 +405,7 @@ struct TunInbound::TunUdpFlow
 
   TunInbound &owner;
   std::uint16_t nat_port{};
-  TunFlowKey  session;
+  TunFlowKey session;
   udp::socket socket;
   std::mutex mutex;
   std::deque<std::vector<std::uint8_t>> pending;
@@ -450,9 +447,14 @@ bool TunInbound::handle_udp_packet(std::uint8_t *packet, std::uint32_t size) {
 
   const auto src_port = read_be16(udp_header);
   const auto dst_port = read_be16(udp_header + 2);
-  const auto nat_port =
+  const auto nat_result =
       udp_nat_.lookup_or_create(src_ip, src_port, dst_ip, dst_port);
 
+  if (nat_result.evicted_nat_port) {
+    erase_udp_flow(*nat_result.evicted_nat_port);
+  }
+
+  const auto nat_port = nat_result.nat_port;
   auto session = udp_nat_.lookup_back(nat_port);
   if (!session) {
     return false;
@@ -478,7 +480,7 @@ bool TunInbound::handle_udp_packet(std::uint8_t *packet, std::uint32_t size) {
   return false;
 }
 
-void TunInbound::write_udp_response(const TunFlowKey  &session,
+void TunInbound::write_udp_response(const TunFlowKey &session,
                                     const std::uint8_t *data,
                                     std::size_t size) {
   const auto ip_header_len = 20u;
@@ -499,8 +501,7 @@ void TunInbound::write_udp_response(const TunFlowKey  &session,
   write_be16(packet.data() + 6, 0x4000);
 
   std::memcpy(packet.data() + 12, &session.dst_ip, sizeof(session.dst_ip));
-  std::memcpy(packet.data() + 16, &session.src_ip,
-              sizeof(session.src_ip));
+  std::memcpy(packet.data() + 16, &session.src_ip, sizeof(session.src_ip));
 
   auto *udp_header = packet.data() + ip_header_len;
   write_be16(udp_header, session.dst_port);
@@ -515,13 +516,13 @@ void TunInbound::write_udp_response(const TunFlowKey  &session,
   std::lock_guard lock(wintun_write_mutex_);
   wintun_.write(packet.data(), static_cast<std::uint32_t>(packet.size()));
 }
-
 void TunInbound::erase_udp_flow(std::uint16_t nat_port) {
   std::shared_ptr<TunUdpFlow> flow;
   {
     std::lock_guard lock(udp_flows_mutex_);
     auto it = udp_flows_.find(nat_port);
     if (it == udp_flows_.end()) {
+      udp_nat_.erase(nat_port);
       return;
     }
     flow = it->second;
@@ -529,9 +530,9 @@ void TunInbound::erase_udp_flow(std::uint16_t nat_port) {
   }
 
   udp_nat_.erase(nat_port);
-  flow->close();
-}
 
+  asio::post(io_, [flow = std::move(flow)] { flow->close(); });
+}
 void TunInbound::stop() noexcept {
   if (stopping_.exchange(true)) {
     return;
@@ -551,7 +552,7 @@ void TunInbound::stop() noexcept {
     }
 
     for (auto &flow : flows) {
-      flow->close();
+      asio::post(io_, [flow] { flow->close(); });
     }
   }
 
